@@ -1,0 +1,141 @@
+/*
+  USER UNFRIENDLY: tokens and parts, shared by the brand sheet, the event app and anything else made for it.
+  Three flat colours (red, ink, paper), Archivo and DM Mono. Every part is sized in em, so setting font-size
+  on a part (or its parent) scales the whole thing: small on a phone, huge on the projector.
+  Rules in words: USER-UNFRIENDLY.md, next to this file.
+*/
+
+@font-face {
+  font-family: "Archivo";
+  src: url("fonts/archivo-latin-wdth-normal.woff2") format("woff2");
+  font-weight: 100 900;
+  font-stretch: 62% 125%;
+  font-display: swap;
+}
+@font-face {
+  font-family: "DM Mono";
+  src: url("fonts/DMMono-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-display: swap;
+}
+
+:root {
+  --uu-red: #E5231B;
+  --uu-ink: #0D0D0D;
+  --uu-paper: #F2EEE6;
+  --uu-sans: "Archivo", "Arial Narrow", system-ui, sans-serif;
+  --uu-mono: "DM Mono", ui-monospace, Menlo, monospace;
+  /* Hard shadows are ink; on an ink background set --uu-shadow: var(--uu-red) */
+  --uu-shadow: var(--uu-ink);
+}
+
+/* ---------- Type ---------- */
+
+/* The title voice: black, squeezed, shouting */
+.uu-display { font-family: var(--uu-sans); font-weight: 900; font-stretch: 62%; line-height: 0.82; letter-spacing: -0.02em; text-transform: uppercase; }
+/* The same voice in lowercase, for blurred or tracked titles */
+.uu-display--lower { font-stretch: 70%; letter-spacing: -0.045em; text-transform: lowercase; }
+/* Headlines inside parts and pages */
+.uu-head { font-family: var(--uu-sans); font-weight: 900; font-stretch: 80%; line-height: 0.98; letter-spacing: -0.02em; }
+/* Body copy */
+.uu-text { font-family: var(--uu-sans); font-weight: 600; font-stretch: 95%; line-height: 1.3; }
+/* The system voice: labels, window titles, tags, small print */
+.uu-mono { font-family: var(--uu-mono); font-weight: 400; letter-spacing: 0.14em; text-transform: uppercase; }
+/* Type you fight to read. Blur scales with the type size */
+.uu-blur { filter: blur(0.11em); }
+
+/* ---------- Buttons ---------- */
+
+.uu-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.5em;
+  padding: 0.55em 1.15em 0.45em; font: 800 1em/1 var(--uu-sans); font-stretch: 95%; text-transform: uppercase; text-decoration: none;
+  color: var(--uu-ink); background: var(--uu-paper); border: 0.18em solid var(--uu-ink); border-radius: 0;
+  box-shadow: 0.25em 0.25em 0 var(--uu-shadow); cursor: pointer;
+  transition: transform 80ms ease-out, box-shadow 80ms ease-out;
+}
+.uu-btn:hover { transform: translate(-0.06em, -0.06em); box-shadow: 0.31em 0.31em 0 var(--uu-shadow); }
+.uu-btn:active { transform: translate(0.25em, 0.25em); box-shadow: 0 0 0 var(--uu-shadow); }
+.uu-btn:focus-visible { outline: 0.18em solid var(--uu-red); outline-offset: 0.3em; }
+.uu-btn--ink { color: var(--uu-paper); background: var(--uu-ink); }
+.uu-btn--red { color: var(--uu-paper); background: var(--uu-red); }
+.uu-btn[disabled], .uu-btn[aria-disabled="true"] { cursor: not-allowed; opacity: 1; color: var(--uu-ink); background: var(--uu-paper); box-shadow: none; border-style: dashed; transform: none; }
+
+/* ---------- System window ---------- */
+
+.uu-window { color: var(--uu-ink); background: var(--uu-paper); border: 0.2em solid var(--uu-ink); box-shadow: 0.7em 0.7em 0 var(--uu-shadow); }
+.uu-window__bar { display: flex; justify-content: space-between; align-items: center; gap: 1em; padding: 0.45em 0.7em 0.4em; color: var(--uu-paper); background: var(--uu-ink); font-family: var(--uu-mono); font-size: 0.8em; letter-spacing: 0.08em; }
+.uu-window__body { display: grid; grid-template-columns: auto 1fr; gap: 1.1em; padding: 1.4em 1.25em 1.1em; }
+.uu-window__icon { width: 1.4em; height: 1.4em; display: grid; place-items: center; color: var(--uu-paper); background: var(--uu-red); border: 0.07em solid var(--uu-ink); border-radius: 50%; font: 900 2.4em/1 var(--uu-sans); }
+.uu-window__title { margin: 0; font: 900 2em/0.98 var(--uu-sans); font-stretch: 80%; letter-spacing: -0.02em; }
+.uu-window__text { margin: 0.55em 0 0; font: 600 1em/1.3 var(--uu-sans); }
+.uu-window__actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 0.6em; margin-top: 0.3em; }
+
+/* ---------- Tracking box ---------- */
+
+/* A red box drawn round something, with a tag on top. Put it inside a positioned parent */
+.uu-track { position: absolute; border: 0.14em solid var(--uu-red); pointer-events: none; }
+.uu-track__tag { position: absolute; left: -0.14em; bottom: 100%; padding: 0.3em 0.55em 0.2em; white-space: nowrap; color: var(--uu-paper); background: var(--uu-red); font-family: var(--uu-mono); font-size: 0.72em; letter-spacing: 0.08em; text-transform: uppercase; }
+/* A tag that hangs from the box's right end instead (for boxes near the right edge) */
+.uu-track__tag--end { left: auto; right: -0.14em; }
+/* The user's voice: a lowercase complaint instead of a system label */
+.uu-track__tag--user { font-family: var(--uu-sans); font-weight: 700; font-stretch: 85%; letter-spacing: 0; text-transform: none; }
+/* A crosshair mark */
+.uu-cross { position: absolute; width: 1em; height: 1em; pointer-events: none; }
+.uu-cross::before, .uu-cross::after { content: ""; position: absolute; background: currentColor; }
+.uu-cross::before { left: 0; right: 0; top: calc(50% - 0.04em); height: 0.08em; }
+.uu-cross::after { top: 0; bottom: 0; left: calc(50% - 0.04em); width: 0.08em; }
+
+/* ---------- Key cap ---------- */
+
+.uu-key { position: relative; display: inline-block; width: 6.2em; height: 4.7em; padding: 0.45em 0.55em; color: var(--uu-ink); background: var(--uu-paper); border: 0.13em solid var(--uu-ink); border-radius: 0.55em; box-shadow: 0 0.4em 0 var(--uu-ink); font: 800 1.35em/1 var(--uu-sans); rotate: 6deg; }
+.uu-key small { position: absolute; left: 0.55em; bottom: 0.45em; font-family: var(--uu-mono); font-weight: 400; font-size: 0.28em; letter-spacing: 0.1em; text-transform: uppercase; }
+
+/* ---------- The slab: the one place that is always sharp ---------- */
+
+.uu-slab { color: var(--uu-paper); background: var(--uu-red); }
+.uu-slab__big { margin: 0; font: 900 1em/0.86 var(--uu-sans); font-stretch: 68%; letter-spacing: -0.02em; text-transform: uppercase; }
+.uu-slab__row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 0.3em 1em; padding: 0.35em 0 0.3em; border-top: 0.07em solid currentColor; }
+.uu-slab__fact { font: 900 1em/1 var(--uu-sans); font-stretch: 75%; letter-spacing: -0.02em; text-transform: uppercase; }
+
+/* ---------- Agenda (AGENDA.EXE) ---------- */
+
+.uu-agenda { color: var(--uu-ink); background: var(--uu-paper); border: 0.2em solid var(--uu-ink); }
+.uu-agenda__bar { display: flex; justify-content: space-between; gap: 1em; padding: 0.5em 0.9em 0.4em; color: var(--uu-paper); background: var(--uu-ink); font-family: var(--uu-mono); font-size: 0.8em; letter-spacing: 0.14em; }
+.uu-agenda__row { display: grid; grid-template-columns: 1.2em auto minmax(0, 1fr) auto; gap: 0.8em; align-items: center; padding: 0.55em 0.9em 0.45em; border-top: 0.15em solid currentColor; }
+.uu-agenda__row:first-of-type { border-top: 0; }
+.uu-agenda__tick { width: 1.1em; height: 1.1em; border: 0.18em solid currentColor; }
+.uu-agenda__time { font: 900 2.1em/0.9 var(--uu-sans); font-stretch: 68%; }
+.uu-agenda__what { font: 900 1.35em/1 var(--uu-sans); font-stretch: 80%; letter-spacing: -0.015em; text-transform: uppercase; }
+.uu-agenda__note { display: block; margin-top: 0.2em; font-weight: 600; font-stretch: 95%; font-size: 0.6em; line-height: 1.2; letter-spacing: 0; text-transform: none; }
+.uu-agenda__len { padding: 0.35em 0.5em 0.25em; border: 0.15em solid currentColor; font-family: var(--uu-mono); font-size: 0.65em; letter-spacing: 0.1em; white-space: nowrap; }
+.uu-agenda__row--now { color: var(--uu-paper); background: var(--uu-ink); }
+.uu-agenda__row--now .uu-agenda__tick { background: currentColor; }
+
+/* ---------- Event app parts ---------- */
+
+/* A dealt card: a website or a feature */
+.uu-card { display: grid; gap: 0.5em; align-content: start; padding: 0.9em 1em 1em; color: var(--uu-ink); background: var(--uu-paper); border: 0.18em solid var(--uu-ink); box-shadow: 0.35em 0.35em 0 var(--uu-shadow); }
+.uu-card__kind { font-family: var(--uu-mono); font-size: 0.72em; letter-spacing: 0.14em; text-transform: uppercase; }
+.uu-card__name { margin: 0; font: 900 1.9em/0.95 var(--uu-sans); font-stretch: 75%; letter-spacing: -0.02em; text-transform: uppercase; }
+.uu-card--site { color: var(--uu-paper); background: var(--uu-ink); box-shadow: 0.35em 0.35em 0 var(--uu-red); }
+
+/* An award badge you can toggle: aria-pressed="true" when given */
+.uu-badge { display: inline-flex; align-items: center; gap: 0.55em; padding: 0.6em 0.9em 0.5em; color: var(--uu-ink); background: var(--uu-paper); border: 0.18em solid var(--uu-ink); font: 800 1em/1 var(--uu-sans); font-stretch: 90%; text-transform: uppercase; cursor: pointer; }
+.uu-badge::before { content: ""; width: 0.8em; height: 0.8em; flex: none; border: 0.15em solid currentColor; }
+.uu-badge[aria-pressed="true"] { color: var(--uu-paper); background: var(--uu-red); border-color: var(--uu-ink); box-shadow: 0.25em 0.25em 0 var(--uu-ink); }
+.uu-badge[aria-pressed="true"]::before { background: currentColor; }
+.uu-badge:focus-visible { outline: 0.18em solid var(--uu-ink); outline-offset: 0.25em; }
+
+/* The judges' six blocks. Each block fills from the bottom as the rating rises; the chosen one turns ink */
+.uu-rate { display: grid; grid-template-columns: repeat(6, 1fr); gap: 0.4em; }
+.uu-rate__block { --fill: 0%; display: grid; align-content: end; aspect-ratio: 1 / 1.25; padding: 0.35em 0.3em; color: var(--uu-ink); border: 0.16em solid var(--uu-ink); background: linear-gradient(to top, var(--uu-red) var(--fill), var(--uu-paper) var(--fill)); font-family: var(--uu-mono); font-size: 0.62em; letter-spacing: 0.04em; line-height: 1.15; text-align: left; text-transform: uppercase; cursor: pointer; }
+.uu-rate__block[aria-pressed="true"] { color: var(--uu-paper); background: var(--uu-ink); box-shadow: 0 0 0 0.16em var(--uu-red); }
+.uu-rate__block:focus-visible { outline: 0.2em solid var(--uu-red); outline-offset: 0.2em; }
+
+/* ---------- Pixel canvases drawn by user-unfriendly.js ---------- */
+
+canvas.uu-pixels { display: block; width: 100%; height: auto; image-rendering: pixelated; image-rendering: crisp-edges; }
+
+@media (prefers-reduced-motion: reduce) {
+  .uu-btn, .uu-btn:hover, .uu-btn:active { transition: none; transform: none; }
+}

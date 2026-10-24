@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#F2EEE6">
+  <title>USER UNFRIENDLY</title>
+  <link rel="preload" href="/unfriendly/brand/fonts/archivo-latin-wdth-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/unfriendly/brand/user-unfriendly.css">
+  <link rel="stylesheet" href="/unfriendly/css/unfriendly.css">
+</head>
+<body class="phone">
+  <header class="phone__top mono">
+    <span>User unfriendly</span>
+    <span class="phone__state" id="state" role="status" aria-live="polite">Connecting…</span>
+  </header>
+  <canvas class="phone__edge" id="edge" aria-hidden="true"></canvas>
+  <main class="phone__main" id="main" aria-live="polite"></main>
+  <div class="modal" id="modal" hidden>
+    <div class="uu-window" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="uu-window__bar"><span id="modal-bar">ARE YOU SURE?</span><span>×</span></div>
+      <div class="uu-window__body">
+        <span class="uu-window__icon" aria-hidden="true">!</span>
+        <div><p class="uu-window__title" id="modal-title"></p><p class="uu-window__text" id="modal-text"></p></div>
+        <div class="uu-window__actions"><button class="uu-btn" type="button" id="modal-no">No</button><button class="uu-btn uu-btn--ink" type="button" id="modal-yes">Yes</button></div>
+      </div>
+    </div>
+  </div>
+  <div class="toast" id="toast" role="alert" hidden></div>
+  <script type="module" src="/unfriendly/js/phone.js"></script>
+</body>
+</html>

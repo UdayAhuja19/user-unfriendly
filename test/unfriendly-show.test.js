@@ -1,0 +1,188 @@
+// USER UNFRIENDLY's second half with real sockets: links, presenting, judges, stickers, results
+// and the certificate lists. Plus the scoring on its own.
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import WebSocket from "ws";
+import { createUnfriendlyServer } from "../server/unfriendly/server.js";
+import { openStore } from "../server/unfriendly/store.js";
+import { computeResults, judgeScores, csv } from "../server/unfriendly/results.js";
+import { siteUrl } from "../unfriendly/js/shared/rules.js";
+
+function open(url, options) {
+  return new Promise((resolve, reject) => {
+    const ws = new WebSocket(url, options);
+    ws.messages = [];
+    ws.on("message", (data) => ws.messages.push(JSON.parse(data)));
+    ws.once("open", () => resolve(ws));
+    ws.once("error", reject);
+  });
+}
+async function until(ws, check, ms = 4000) {
+  const end = Date.now() + ms;
+  for (;;) {
+    const msg = [...ws.messages].reverse().find(check);
+    if (msg) return msg;
+    if (Date.now() > end) throw new Error("timed out");
+    await new Promise((r) => setTimeout(r, 15));
+  }
+}
+let seq = 0;
+async function act(ws, msg) {
+  const op = `op-${String((seq += 1)).padStart(6, "0")}`;
+  ws.send(JSON.stringify({ ...msg, op }));
+  return until(ws, (m) => m.op === op);
+}
+const lastView = (ws, check = () => true) => until(ws, (m) => m.t === "view" && check(m.view));
+
+test("links, presenting, judges, stickers and results", { timeout: 30_000 }, async () => {
+  const store = await openStore(":memory:", { judgePin: "2710" });
+  const server = createUnfriendlyServer({ store, tickMs: 20 });
+  const ports = await server.listen({ phonePort: 0, screenPort: 0 });
+  const url = `ws://127.0.0.1:${ports.phone}/ws`;
+  const host = await open(`ws://127.0.0.1:${ports.screen}/ws`, { origin: `http://127.0.0.1:${ports.screen}` });
+  host.send(JSON.stringify({ t: "hello", role: "host" }));
+  const run = async (t, payload = {}) => {
+    const op = `host-${(seq += 1)}`;
+    host.send(JSON.stringify({ t, op, ...payload }));
+    const r = await until(host, (m) => m.t === "result" && m.op === op);
+    return r;
+  };
+  const phone = async (cid) => {
+    const ws = await open(url);
+    ws.send(JSON.stringify({ t: "hello", cid }));
+    await until(ws, (m) => m.t === "who" || m.t === "view");
+    return ws;
+  };
+  try {
+    // Four teams of two.
+    const members = [];
+    for (let i = 0; i < 4; i += 1) {
+      const a = await phone(`maker-${i}-aaaa`);
+      assert.equal((await act(a, { t: "make", name: `Maker ${i}`, team: `Team ${i}` })).t, "ok");
+      const code = (await lastView(a, (v) => v.team)).view.team.code;
+      const b = await phone(`joiner-${i}-aaaa`);
+      assert.equal((await act(b, { t: "join", name: `Joiner ${i}`, code })).t, "ok");
+      members.push({ a, b, code });
+    }
+    assert.ok((await run("deal")).ok);
+    assert.ok((await run("buildStart", { minutes: 55 })).ok);
+
+    // ---- Links ----
+    assert.match((await act(members[0].a, { t: "link", url: "https://a.example.com" })).error, /AREN'T OPEN/);
+    assert.ok((await run("linksOpen")).ok);
+    assert.equal((await act(members[0].a, { t: "link", url: "alpha.lovable.app" })).t, "ok", "a member doesn't need the code");
+    const stranger = await phone("new-address-01");
+    assert.match((await act(stranger, { t: "link", code: members[1].code, url: "http://localhost:5173" })).error, /ONLY WORKS ON YOUR LAPTOP/);
+    assert.equal((await act(stranger, { t: "link", code: members[1].code, url: "https://claude.ai/public/artifacts/abc" })).t, "ok");
+    const teams = (await until(host, (m) => m.t === "host" && m.teams.filter((t) => t.link).length === 2)).teams;
+    assert.equal(teams[0].link.host, "alpha.lovable.app");
+    assert.ok((await run("hostLink", { teamId: teams[2].id, ownLaptop: true })).ok);
+
+    // ---- Presenting ----
+    assert.ok((await run("presentStart", { minutes: 40 })).ok);
+    const order = (await until(host, (m) => m.t === "host" && m.phase === "present" && m.order.length === 4)).order;
+
+    // ---- Judges ----
+    const judge = await phone("judge-phone-1");
+    assert.equal((await act(judge, { t: "judges", pin: "0000" })).t, "no");
+    assert.deepEqual((await act(judge, { t: "judges", pin: "2710" })).judges, []);
+    assert.equal((await act(judge, { t: "judgeNew", pin: "2710", name: "Rayyan" })).t, "ok");
+    const judge2 = await phone("judge-phone-2");
+    assert.equal((await act(judge2, { t: "judgeNew", pin: "2710", name: "Ronak" })).t, "ok");
+    assert.match((await act(judge, { t: "rate", team: order[0].teamId, value: 6 })).error, /CLOSED/, "not before the demo starts");
+    assert.ok((await run("demoStart")).ok);
+    assert.equal((await act(judge, { t: "rate", team: order[0].teamId, value: 5 })).t, "ok");
+    assert.equal((await act(judge, { t: "rate", team: order[0].teamId, value: 6 })).t, "ok", "can change it during the demo");
+    assert.match((await act(judge, { t: "rate", team: order[1].teamId, value: 6 })).error, /CLOSED/);
+    assert.ok((await run("next")).ok);
+    assert.equal((await act(judge2, { t: "rate", team: order[0].teamId, value: 2 })).t, "ok", "a first rating just after NEXT still counts");
+    assert.match((await act(judge, { t: "rate", team: order[0].teamId, value: 1 })).error, /CLOSED/, "but not a change");
+    const jv = (await lastView(judge, (v) => v.current?.slot === 1)).view;
+    assert.equal(jv.current.name, (await until(host, (m) => m.t === "host")).order[1].name);
+
+    // ---- Stickers ----
+    const fan = await phone("sticker-fan-1");
+    assert.equal((await act(fan, { t: "audience", name: "Fan One", ownTeam: order[0].teamId })).t, "ok");
+    assert.match((await act(fan, { t: "slap", team: order[0].teamId, kind: "best-ui", x: 500, y: 500 })).error, /NOT YOUR OWN TEAM/);
+    assert.match((await act(fan, { t: "slap", team: order[2].teamId, kind: "best-ui", x: 500, y: 500 })).error, /HASN'T PRESENTED/);
+    assert.ok((await run("demoStart")).ok); // team 2 of 4 is on
+    const watcher = await phone("sticker-watch-2");
+    await act(watcher, { t: "audience", name: "Watcher", ownTeam: null });
+    watcher.send(JSON.stringify({ t: "watch", team: order[1].teamId }));
+    await until(watcher, (m) => m.t === "pile" && m.team === order[1].teamId);
+    for (let i = 0; i < 3; i += 1) assert.equal((await act(fan, { t: "slap", team: order[1].teamId, kind: "best-ui", x: 100 * i, y: 200 })).t, "ok");
+    assert.match((await act(fan, { t: "slap", team: order[1].teamId, kind: "best-ui", x: 1, y: 1 })).error, /USED ALL 3/);
+    const pile = await until(watcher, (m) => m.t === "pile+" && m.add.length >= 1);
+    assert.equal(pile.add[0][1], "best-ui", "the watching phone sees stickers land");
+    assert.equal((await lastView(fan, (v) => v.stickers?.left["best-ui"] === 0)).view.stickers.left.funniest, 3);
+    // Peel one and it can go again.
+    const mine = (await until(fan, (m) => m.t === "ok" && m.id)).id;
+    assert.equal((await act(fan, { t: "peel", id: mine })).t, "ok");
+    assert.equal((await act(fan, { t: "slap", team: order[1].teamId, kind: "best-ui", x: 9, y: 9 })).t, "ok");
+    assert.match((await act(watcher, { t: "peel", id: mine + 1 })).error, /ISN'T YOUR STICKER/);
+    for (const k of ["funniest", "creative"]) await act(fan, { t: "slap", team: order[0].teamId === order[1].teamId ? order[2].teamId : order[1].teamId, kind: k, x: 5, y: 5 });
+
+    // ---- Results ----
+    assert.ok((await run("next")).ok);
+    assert.ok((await run("resultsStart")).ok);
+    assert.match((await act(fan, { t: "slap", team: order[1].teamId, kind: "why", x: 1, y: 1 })).error, /CLOSED/);
+    assert.ok((await run("reveal")).ok);
+    const all = (await until(host, (m) => m.t === "host" && m.phase === "results" && m.resultsAll)).resultsAll;
+    const main = all.awards.find((a) => a.key === "main");
+    assert.equal(main.team.id, order[0].teamId, "rated 6 and 2 by two judges: the only team with ratings");
+    const bestUi = all.awards.find((a) => a.key === "best-ui");
+    assert.equal(bestUi.team.id, order[1].teamId);
+    const res = await fetch(`http://127.0.0.1:${ports.screen}/export/winners.csv`);
+    const bytes = Buffer.from(await res.arrayBuffer());
+    assert.deepEqual([...bytes.subarray(0, 3)], [0xef, 0xbb, 0xbf], "a BOM, so Excel shows accents");
+    const text = bytes.toString("utf8");
+    assert.ok(text.includes("Award,Team,Name on certificate"));
+    assert.ok(text.includes("Best UI"));
+    for (const ws of [...members.flatMap((m) => [m.a, m.b]), stranger, judge, judge2, fan, watcher]) ws.close();
+    host.close();
+  } finally {
+    await server.close();
+    store.close();
+  }
+});
+
+test("judging: harsh and generous judges count the same, and the extremes are trimmed", () => {
+  // Judge 1 gives everyone 1 or 2; judge 2 gives everyone 5 or 6. Both prefer team A.
+  const ratings = [
+    { judge_id: 1, team_id: "A", value: 2 }, { judge_id: 1, team_id: "B", value: 1 },
+    { judge_id: 2, team_id: "A", value: 6 }, { judge_id: 2, team_id: "B", value: 5 },
+  ];
+  const s = judgeScores(ratings, 1);
+  assert.ok(s.get("A").score > s.get("B").score);
+  // A judge who rates everything the same moves nothing.
+  const flat = judgeScores([...ratings, { judge_id: 3, team_id: "A", value: 4 }, { judge_id: 3, team_id: "B", value: 4 }], 1);
+  assert.ok(flat.get("A").score > flat.get("B").score);
+});
+
+test("titles: one per team, main award first, side quests by share", () => {
+  const team = (id) => ({ id, name: `T${id}`, cards: [], members: [{ name: `P${id}` }] });
+  const r = computeResults({
+    teams: [1, 2, 3].map(team),
+    presented: new Set([1, 2, 3]),
+    ratings: [1, 2, 3, 4, 5].flatMap((j) => [{ judge_id: j, team_id: 1, value: 6 }, { judge_id: j, team_id: 2, value: 3 }]),
+    stickers: [
+      ...Array(5).fill({ team_id: 1, kind: "best-ui" }), // team 1 wins the main award, so it can't take Best UI
+      ...Array(3).fill({ team_id: 2, kind: "best-ui" }),
+      ...Array(4).fill({ team_id: 2, kind: "funniest" }),
+      { team_id: 3, kind: "funniest" },
+    ],
+    judges: 5,
+  });
+  const by = Object.fromEntries(r.awards.map((a) => [a.key, a.team?.id ?? null]));
+  assert.equal(by.main, 1);
+  assert.equal(by.funniest, 2, "team 2's biggest share");
+  assert.equal(by["best-ui"], null, "team 1 has it, but already won; team 2 already has a title");
+  assert.equal(by.creative, null);
+  assert.equal(r.awards.at(-1).key, "main", "revealed last");
+});
+
+test("links and CSV are safe", () => {
+  assert.equal(siteUrl("site.vercel.app").url, "https://site.vercel.app/");
+  for (const bad of ["javascript:alert(1)", "http://192.168.1.4:3000", "https://user:pw@x.com", "file:///etc/passwd", "http://intranet"]) assert.ok(siteUrl(bad).error, bad);
+  assert.equal(csv([["=SUM(A1)", "Zoë, \"Z\""]]), '﻿\'=SUM(A1),"Zoë, ""Z"""\r\n');
+});
