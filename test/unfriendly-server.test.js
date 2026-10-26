@@ -253,3 +253,40 @@ test("kill -9 at any moment: the server starts again exactly where it was", { ti
   s.child.kill("SIGINT");
   await new Promise((r) => s.child.once("exit", r));
 });
+
+test("npm run unfriendly restarts the app after a crash, without --fresh, and loses nothing", { timeout: 30_000 }, async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "uu-run-"));
+  const db = path.join(dir, "uu.db");
+  const base = 3500 + Math.floor(Math.random() * 400) * 2;
+  const sup = spawn(process.execPath, ["server/unfriendly/run.js", "--local", "--fresh", "--yes", "--db", db, "--ports", `${base},${base + 1}`, "--no-caffeinate"], { stdio: ["ignore", "pipe", "pipe"] });
+  let out = "";
+  sup.stdout.on("data", (d) => (out += d));
+  sup.stderr.on("data", (d) => (out += d));
+  const waitFor = async (check, ms = 10_000) => {
+    const end = Date.now() + ms;
+    while (!check()) {
+      if (Date.now() > end) throw new Error(`timed out; output:\n${out}`);
+      await new Promise((r) => setTimeout(r, 50));
+    }
+  };
+  try {
+    await waitFor(() => (out.match(/Big screen:/g) ?? []).length >= 1);
+    const ws = new WebSocket(`ws://127.0.0.1:${base}/ws`);
+    await new Promise((r) => ws.once("open", r));
+    ws.send(JSON.stringify({ t: "hello", cid: "crash-test-01" }));
+    ws.send(JSON.stringify({ t: "make", op: "make-crash-1", name: "Crash Test", team: "Survivors" }));
+    await new Promise((r) => ws.on("message", (d) => JSON.parse(d).op === "make-crash-1" && r()));
+    ws.terminate();
+    const appPid = Number(fs.readFileSync(`${db}.lock`, "utf8"));
+    process.kill(appPid, "SIGKILL");
+    await waitFor(() => (out.match(/Big screen:/g) ?? []).length >= 2);
+    assert.match(out, /stopped unexpectedly \(SIGKILL\)/);
+    assert.equal(fs.readdirSync(dir).includes("archive"), false, "the restart didn't start a fresh event");
+    const store = await openStore(db);
+    assert.deepEqual(store.all("SELECT name FROM teams").map((t) => t.name), ["Survivors"]);
+    store.close();
+  } finally {
+    sup.kill("SIGTERM");
+    await new Promise((r) => sup.once("exit", r));
+  }
+});

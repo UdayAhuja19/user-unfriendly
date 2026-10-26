@@ -51,7 +51,7 @@ When Terminal shows `Phones join at: https://…trycloudflare.com`:
 - **Big screen:** open http://localhost:3301 in Chrome, drag the window to the projector and make it full screen (control ⌘ F).
 - **Host panel:** open http://localhost:3301/host on the laptop's own screen.
 
-**After any stop or crash,** start it again with plain `npm run unfriendly` and **never `--fresh`**. It carries on exactly where it left off.
+**If it crashes, it restarts by itself** within 2 seconds and carries on exactly where it left off; nothing is lost. **If you stop it** (Ctrl+C, Terminal closed, flat battery), start it again with plain `npm run unfriendly` and **never `--fresh`**.
 
 The manual has everything else.
 
@@ -74,6 +74,7 @@ Extra options: `--scale 0.1` makes every duration a tenth (for drills), `--db <f
 ## How it works
 
 - **Two ports, one program.** The phone port (3300) is the only one exposed, through the tunnel. The big screen, the host panel and the certificate downloads are on port 3301, which answers only on the laptop itself.
+- **Auto-restart.** `npm run unfriendly` runs `server/unfriendly/run.js`, which restarts the app 2 s after any crash. A restart never repeats `--fresh`; Ctrl+C stops everything; problems only a person can fix (another copy running, a busy port) aren't retried; after 6 crashes in a minute it stops. `--no-restart` turns it off.
 - **The database is the state.** Everything is saved to `data/unfriendly/unfriendly.db` (SQLite, built into Node) the moment it happens, before anyone is told. A restart, even after a crash, carries on exactly. Nothing changes phase on a timer: the host presses a button for every step. Backups go to `data/unfriendly/backups/`.
 - **The build clock never stops.** The big screen counts down from the end time even with the app stopped. A self-contained clock page is also written to `data/unfriendly/clock/`, and the display is kept awake until 15 minutes after pencils down.
 - **Phones get back in by themselves.** A phone remembers who it is. After a restart (which gives a new tunnel link) people rescan the QR, type their team code and tap their name. Judges enter the PIN and tap their name.

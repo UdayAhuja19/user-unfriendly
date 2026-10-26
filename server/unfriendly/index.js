@@ -23,6 +23,9 @@ import { startTunnel } from "../party/tunnel.js";
 import { writeClock, keepAwake, openFile, CLOCK_FILE } from "./clock.js";
 
 const argv = process.argv.slice(2);
+// Exit code for problems only a person can fix (a bad option, another copy running, a busy port):
+// run.js, which restarts the app after a crash, stops instead of trying again.
+const NEEDS_A_PERSON = 78;
 const flag = (name) => argv.includes(name);
 const option = (name) => {
   const i = argv.indexOf(name);
@@ -35,7 +38,7 @@ const offline = flag("--offline");
 const scale = Number(option("--scale") ?? 1);
 if (!(scale > 0 && scale <= 10)) {
   console.error("--scale must be a number above 0 (0.1 makes every duration a tenth).");
-  process.exit(1);
+  process.exit(NEEDS_A_PERSON);
 }
 const [portA, portB] = (option("--ports") ?? "").split(",").map(Number);
 const PHONE_PORT = Number.isInteger(portA) && option("--ports") ? portA : preview ? 3310 : Number(process.env.UNFRIENDLY_PORT) || 3300;
@@ -65,7 +68,7 @@ try {
   releaseLock = takeLock(LOCK_PATH);
 } catch (err) {
   console.error(err.message);
-  process.exit(1);
+  process.exit(NEEDS_A_PERSON);
 }
 
 // ---------- Starting over ----------
@@ -90,7 +93,7 @@ try {
 } catch (err) {
   console.error(err.message);
   releaseLock();
-  process.exit(1);
+  process.exit(NEEDS_A_PERSON);
 }
 store.run("INSERT INTO boots (at, mode, phase, pid) VALUES (?, ?, ?, ?)", Date.now(), offline ? "offline" : mode, store.getMeta("phase"), process.pid);
 
@@ -130,7 +133,7 @@ try {
   else console.error(err);
   store.close();
   releaseLock();
-  process.exit(1);
+  process.exit(NEEDS_A_PERSON);
 }
 
 // ---------- Where things stand ----------

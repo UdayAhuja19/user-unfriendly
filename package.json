@@ -8,8 +8,8 @@
     "node": ">=22.13"
   },
   "scripts": {
-    "start": "node --env-file-if-exists=.env server/unfriendly/index.js",
-    "unfriendly": "node --env-file-if-exists=.env server/unfriendly/index.js",
+    "start": "node --env-file-if-exists=.env server/unfriendly/run.js",
+    "unfriendly": "node --env-file-if-exists=.env server/unfriendly/run.js",
     "bots": "node scripts/unfriendly-bots.js",
     "test": "node --test \"test/*.test.js\""
   },
