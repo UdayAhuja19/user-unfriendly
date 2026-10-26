@@ -128,6 +128,19 @@ textarea.input { font-family: inherit; font-size: 17px; line-height: 1.35; resiz
 .host .lines { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-weight: 600; }
 .warn { padding: 10px 12px 8px; color: var(--uu-paper); background: var(--uu-red); font-weight: 800; }
 
+/* The join QR on the host panel, and SHOW BIG */
+.host-qr { display: grid; grid-template-columns: 132px minmax(0, 1fr); gap: 14px; align-items: start; }
+.host-qr__code { padding: 6px; background: var(--uu-paper); border: 3px solid var(--uu-ink); }
+.host-qr__code svg { display: block; width: 100%; height: auto; }
+.host-qr__side { display: grid; gap: 10px; justify-items: start; }
+.host-qr__url { font-size: 11px; overflow-wrap: anywhere; }
+.qr-big { position: fixed; inset: 0; z-index: 80; display: grid; place-content: center; justify-items: center; gap: 2vh; color: var(--uu-paper); background: var(--uu-ink); cursor: pointer; }
+.qr-big__title { margin: 0; font-weight: 900; font-stretch: 66%; font-size: min(10vh, 8vw); line-height: 0.9; text-transform: uppercase; }
+.qr-big__code { width: min(68vh, 80vw); padding: 2vh; background: var(--uu-paper); }
+.qr-big__code svg { display: block; width: 100%; height: auto; }
+.qr-big__url { margin: 0; font-family: var(--uu-mono); font-size: max(14px, 1.6vw); letter-spacing: 0.06em; }
+.qr-big__hint { margin: 0; font-family: var(--uu-mono); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; }
+
 /* ---------- Big screen (16:9 projector, Chrome kiosk; nothing may scroll) ---------- */
 .screen { height: 100vh; overflow: hidden; display: grid; grid-template-rows: auto 1fr; }
 .screen__top { display: flex; justify-content: space-between; gap: 2vw; padding: 2.2vh 3vw 1.4vh; font-size: max(12px, 1.05vw); }

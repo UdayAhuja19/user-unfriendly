@@ -64,6 +64,46 @@ function settingsPanel(v) {
   );
 }
 
+// The join QR, always on the host panel: for anyone joining after the big screen has moved on
+// (the deal, the build). SHOW BIG fills the laptop screen with it; it's the same link as the big
+// screen's QR, so it's fine for anyone to see. Team codes stay hidden behind it.
+function joinPanel() {
+  if (!join?.url) return h("section", { class: "panel" }, h("h2", {}, "Phones join here"), h("p", { class: "p-small" }, join?.tunnel === "missing" ? "cloudflared isn't installed, so there's no link for phones." : "Starting the link…"));
+  const qr = h("div", { class: "host-qr__code" });
+  qr.innerHTML = join.qr ?? ""; // our own SVG, made on this laptop
+  return h(
+    "section",
+    { class: "panel" },
+    h("h2", {}, "Phones join here"),
+    h(
+      "div",
+      { class: "host-qr" },
+      qr,
+      h(
+        "div",
+        { class: "host-qr__side" },
+        h("p", { class: "p-small" }, "For anyone joining late, after the big screen's QR is gone. Turn the laptop round, or:"),
+        h("button", { class: "uu-btn uu-btn--ink small-btn", type: "button", onclick: showBigQr }, "Show big"),
+        h("code", { class: "host-qr__url" }, join.url.replace(/^https?:\/\//, ""))
+      )
+    )
+  );
+}
+
+function showBigQr() {
+  if (!join?.qr) return;
+  const close = () => {
+    overlay.remove();
+    document.removeEventListener("keydown", onKey);
+  };
+  const onKey = (event) => event.key === "Escape" && close();
+  const code = h("div", { class: "qr-big__code" });
+  code.innerHTML = join.qr;
+  const overlay = h("div", { class: "qr-big", role: "dialog", "aria-label": "Join QR code", onclick: close }, h("p", { class: "qr-big__title" }, "Scan to join"), code, h("p", { class: "qr-big__url" }, join.url.replace(/^https?:\/\//, "")), h("p", { class: "qr-big__hint" }, "Click anywhere or press Esc to close"));
+  document.body.append(overlay);
+  document.addEventListener("keydown", onKey);
+}
+
 // Add a team: late arrivals or a team formed on the spot, at any time before the results.
 // What's typed is kept here, so a redraw of the panel never loses it.
 const draft = { name: "", members: "" };
@@ -436,10 +476,10 @@ function render() {
     waitingToRender = true;
     return;
   }
-  const sig = JSON.stringify({ ...view, serverNow: 0 });
+  const sig = JSON.stringify({ ...view, serverNow: 0, joinUrl: join?.url ?? null });
   if (sig === lastSig) return;
   lastSig = sig;
-  $("side").replaceChildren(...[phasePanel(view), judgesPanel(view), view.phase === "join" || view.phase === "deal" ? settingsPanel(view) : null, waitingPanel(view), addTeamPanel(view)].filter(Boolean));
+  $("side").replaceChildren(...[phasePanel(view), joinPanel(), judgesPanel(view), view.phase === "join" || view.phase === "deal" ? settingsPanel(view) : null, waitingPanel(view), addTeamPanel(view)].filter(Boolean));
   $("teams").replaceChildren(h("div", { class: "teams-grid" }, view.teams.length ? view.teams.map((t) => teamCard(view, t)) : h("p", {}, "No teams yet.")));
 }
 document.addEventListener("focusout", () => {
