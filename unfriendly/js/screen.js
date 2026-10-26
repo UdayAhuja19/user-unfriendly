@@ -197,19 +197,9 @@ function fitResults() {
 
 function resultsView(s) {
   const r = s.results;
-  if (!r) return h("div", { class: "pencils" }, h("h1", {}, "The", h("br"), "results"));
-  if (r.ended) return endView(s);
-  if (r.step === 0) {
-    return h(
-      "div",
-      { class: "res res--intro" },
-      h("p", { class: "res__kicker" }, "Stickers are closed · the judges have spoken"),
-      h("h1", { class: "res__big" }, "The results"),
-      h("div", { class: "res-load", "aria-hidden": "true" }, h("span", {}, "Computing user unfriendliness"), h("i", {}, h("b")), h("span", {}, "99%")),
-      h("p", { class: "res__sub" }, "Four side quests, decided by your stickers. Then User unfriendliest, decided by the judges."),
-      awardStrip(r, -1)
-    );
-  }
+  if (r?.ended) return endView(s);
+  // Before the first award: just the logo, while the MC sets up the reveal.
+  if (!r || r.step === 0) return h("div", { class: "res-logo" }, h("h1", { class: "sr-only" }, "User unfriendly: the results"), logo());
   const i = r.step - 1;
   const a = r.awards[i];
   const main = a.key === "main";
