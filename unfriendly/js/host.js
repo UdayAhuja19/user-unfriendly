@@ -288,11 +288,19 @@ function phasePanel(v) {
   } else if (v.phase === "results") {
     const all = v.resultsAll?.awards ?? [];
     const step = v.results?.step ?? 0;
+    const ended = v.results?.ended === true;
+    const next = ended ? null : all[step] ? h("b", {}, `${all[step].title} → ${all[step].team?.name ?? "nobody"}`) : h("b", {}, "the end screen (thanks, user unfriendly)");
     parts.push(
-      h("p", {}, `Revealed ${step} of ${all.length}. Next: `, h("b", {}, all[step] ? `${all[step].title} → ${all[step].team?.name ?? "nobody"}` : "nothing, that's all")),
-      h("div", { class: "row" }, h("button", { class: "uu-btn", type: "button", onclick: () => command("reveal", { back: true }) }, "Back"), h("button", { class: "uu-btn uu-btn--red", type: "button", onclick: () => command("reveal", {}) }, "Reveal next")),
+      ended ? h("p", {}, "The end screen is up. It can stay as long as you like. ", h("b", {}, "Back"), " shows the last award again.") : h("p", {}, `Revealed ${step} of ${all.length}. Next: `, next),
+      h(
+        "div",
+        { class: "row" },
+        h("button", { class: "uu-btn", type: "button", onclick: () => command("reveal", { back: true }) }, "Back"),
+        ended ? null : h("button", { class: "uu-btn uu-btn--red", type: "button", onclick: () => command("reveal", {}) }, step < all.length ? "Reveal next" : "Show the end screen")
+      ),
       h("ul", { class: "lines" }, all.map((a) => h("li", {}, `${a.title}: ${a.team?.name ?? "nobody"}`))),
-      h("p", { class: "p-small" }, "Certificates: ", h("a", { href: "/export/winners.csv" }, "winners.csv"), " · ", h("a", { href: "/export/participants.csv" }, "participants.csv"), " · ", h("a", { href: "/export/judges.csv" }, "judges.csv"), " · ", h("a", { href: "/export/everything.json" }, "everything.json"))
+      h("a", { class: "uu-btn uu-btn--ink btn-block", href: "/export/certificates.zip", download: "" }, "Download certificates (zip)"),
+      h("p", { class: "p-small" }, "One file with winners.csv, participants.csv, judges.csv and everything.json. Or one at a time: ", h("a", { href: "/export/winners.csv" }, "winners"), " · ", h("a", { href: "/export/participants.csv" }, "participants"), " · ", h("a", { href: "/export/judges.csv" }, "judges"), " · ", h("a", { href: "/export/everything.json" }, "everything"))
     );
   }
   return h("section", { class: "panel" }, parts);

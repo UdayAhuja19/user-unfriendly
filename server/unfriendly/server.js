@@ -14,6 +14,7 @@ import { index, whoView, participantView, audienceView, judgeView, screenView, h
 import { winnersCsv, participantsCsv, judgesCsv } from "./results.js";
 import { webApp, isLocalHost, send, listen, bucket, take, safely } from "./net.js";
 import { pixelQr } from "./qr.js";
+import { zip } from "./zip.js";
 
 // Phones answer every ping; one that's silent this long is gone even if the socket never closed.
 const PING_EVERY_MS = 2000;
@@ -98,6 +99,17 @@ export function createUnfriendlyServer({ store, clock = Date.now, random = Math.
     app.get("/export/winners.csv", (req, res) => (ix.meta.results_json ? sendCsv(res, "user-unfriendly-winners.csv", winnersCsv(ix.meta.results_json)) : res.status(409).type("text").send("THE RESULTS HAVEN'T STARTED.")));
     app.get("/export/participants.csv", (req, res) => sendCsv(res, "user-unfriendly-participants.csv", participantsCsv(ix, presented())));
     app.get("/export/judges.csv", (req, res) => sendCsv(res, "user-unfriendly-judges.csv", judgesCsv(ix)));
+    // Everything in one click: the certificate lists and the full backup, zipped.
+    app.get("/export/certificates.zip", (req, res) => {
+      const stamp = new Date().toISOString().slice(0, 10);
+      const files = [
+        { name: "participants.csv", data: participantsCsv(ix, presented()) },
+        { name: "judges.csv", data: judgesCsv(ix) },
+        { name: "everything.json", data: JSON.stringify({ ...everythingButThePin(store.load()), stickers: store.all("SELECT * FROM stickers"), audit: store.all("SELECT * FROM audit ORDER BY id") }, null, 2) },
+      ];
+      if (ix.meta.results_json) files.unshift({ name: "winners.csv", data: winnersCsv(ix.meta.results_json) });
+      res.attachment(`user-unfriendly-certificates-${stamp}.zip`).type("application/zip").send(zip(files));
+    });
     app.get("/export/everything.json", (req, res) => res.attachment("user-unfriendly-everything.json").json({ ...everythingButThePin(store.load()), stickers: store.all("SELECT * FROM stickers"), audit: store.all("SELECT * FROM audit ORDER BY id") }));
   }
   const phoneWss = new WebSocketServer({ server: phoneHttp, path: "/ws", maxPayload: PHONE_MAX_BYTES });

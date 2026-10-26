@@ -150,7 +150,7 @@ function revealed(ix) {
   if (ix.phase !== "results" || !ix.meta.results_json) return null;
   const step = ix.meta.results_step ?? 0;
   const awards = ix.meta.results_json.awards;
-  return { step, total: awards.length, awards: awards.slice(0, step) };
+  return { step: Math.min(step, awards.length), total: awards.length, awards: awards.slice(0, step), ended: step > awards.length };
 }
 
 // ---------- Views ----------

@@ -158,7 +158,7 @@ export function createStickers(net) {
     return h(
       "div",
       { class: "tray" },
-      h("p", { class: "tray__label" }, armed ? "Now tap the site above" : "Pick a sticker · the red ones decide the titles"),
+      h("p", { class: "tray__label" }, armed ? "Now tap the site above" : "One of each red sticker · they decide the titles · peel to move"),
       h(
         "div",
         { class: "tray__row" },

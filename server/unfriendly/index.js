@@ -1,7 +1,8 @@
 // USER UNFRIENDLY's event app.
 //
-// npm run unfriendly                 phones join through a free Cloudflare tunnel (needs cloudflared)
-// npm run unfriendly -- --lan        phones on the same Wi-Fi join this laptop directly
+// npm run unfriendly                 starts the way this event was last started (LAN the first time)
+// npm run unfriendly -- --lan        phones on the same Wi-Fi join this laptop directly (the default)
+// npm run unfriendly -- --tunnel     phones join through a free Cloudflare tunnel (needs cloudflared)
 // npm run unfriendly -- --local      nothing on the network: open http://localhost:3300/?p=1, ?p=2 … as phones
 // npm run unfriendly -- --offline    no tunnel, just the host panel (to nudge the clock while phones are off)
 // npm run unfriendly -- --preview    a separate copy for trying changes: ports 3310/3311, its own database
@@ -33,7 +34,6 @@ const option = (name) => {
 };
 
 const preview = flag("--preview");
-const mode = flag("--offline") || preview || flag("--local") ? "local" : flag("--lan") ? "lan" : "tunnel";
 const offline = flag("--offline");
 const scale = Number(option("--scale") ?? 1);
 if (!(scale > 0 && scale <= 10)) {
@@ -48,11 +48,25 @@ const DATA_DIR = path.join(root, "data", preview ? "unfriendly-preview" : "unfri
 const DB_PATH = option("--db") ? path.resolve(option("--db")) : path.join(DATA_DIR, "unfriendly.db");
 const LOCK_PATH = `${DB_PATH}.lock`;
 
+// How phones reach the laptop: LAN unless told otherwise. A plain start reuses the way this event was
+// last started on the network (LAN or tunnel), so a restart needs no options. Laptop-only modes
+// (--local, --offline, --preview) are never remembered, so practice can't leave the event unreachable.
+const MODE_FILE = path.join(path.dirname(DB_PATH), "last-start.json");
+const asked = offline || preview || flag("--local") ? "local" : flag("--tunnel") ? "tunnel" : flag("--lan") ? "lan" : null;
+let remembered = null;
+try {
+  remembered = JSON.parse(fs.readFileSync(MODE_FILE, "utf8")).mode;
+} catch {
+  // First start: nothing remembered.
+}
+const mode = asked ?? (remembered === "tunnel" || remembered === "lan" ? remembered : "lan");
+
+// The laptop's address on the Wi-Fi: the Mac's own adapters (en0, en1…) first, so a VPN or a
+// virtual network never gets put in the QR code.
 function lanAddress() {
-  for (const addrs of Object.values(os.networkInterfaces())) {
-    for (const a of addrs ?? []) if (a.family === "IPv4" && !a.internal) return a.address;
-  }
-  return null;
+  const all = Object.entries(os.networkInterfaces()).flatMap(([name, addrs]) => (addrs ?? []).filter((a) => a.family === "IPv4" && !a.internal).map((a) => ({ name, address: a.address })));
+  const own = all.find((a) => /^en\d+$/.test(a.name)) ?? all.find((a) => !/^(utun|bridge|vmnet|docker|veth|tun|tap)/.test(a.name)) ?? all[0];
+  return own?.address ?? null;
 }
 
 const time = (ms) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -89,7 +103,8 @@ if (flag("--fresh") && fs.existsSync(DB_PATH)) {
 
 let store;
 try {
-  store = await openStore(DB_PATH, { judgePin: /^\d{4,8}$/.test(process.env.UU_JUDGE_PIN ?? "") ? process.env.UU_JUDGE_PIN : null });
+  // The judges' PIN: UU_JUDGE_PIN if given, else 6767. It's fixed when the event is created.
+  store = await openStore(DB_PATH, { judgePin: /^\d{4,8}$/.test(process.env.UU_JUDGE_PIN ?? "") ? process.env.UU_JUDGE_PIN : "6767" });
 } catch (err) {
   console.error(err.message);
   releaseLock();
@@ -136,6 +151,15 @@ try {
   process.exit(NEEDS_A_PERSON);
 }
 
+// Remember the network mode for next time (LAN or tunnel only).
+if (mode !== "local") {
+  try {
+    fs.writeFileSync(MODE_FILE, JSON.stringify({ mode, at: Date.now() }));
+  } catch {
+    // Not worth stopping for.
+  }
+}
+
 // ---------- Where things stand ----------
 function report() {
   const ix = server.ix;
@@ -163,6 +187,7 @@ if (flag("--clock")) {
 }
 
 let tunnel = null;
+if (!asked) console.log(`Phones: ${mode === "lan" ? "same Wi-Fi (LAN)" : "Cloudflare tunnel"}${remembered ? ", as last time" : ""}. To change: npm run unfriendly -- --tunnel  (or --lan)`);
 if (offline) {
   console.log("Offline: no phones, just the host panel. Ctrl+C when you're done.");
 } else if (mode === "tunnel") {

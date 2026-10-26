@@ -157,16 +157,106 @@ function presentView(s) {
   );
 }
 
+// ---------- Results ----------
+// The intro, one award at a time (four side quests, then the main award), then the end screen.
+const AWARD_TITLES = ["Best UI", "Funniest bad UX", "Most creative UX", "Best worst feature", "User unfriendliest"];
+
+function featuresOf(s, team) {
+  return s.teams.find((t) => t.id === team?.id)?.cards ?? [];
+}
+
+// Five slots along the bottom: revealed ones show the team, the current one is lit, the rest are sealed.
+function awardStrip(r, current) {
+  const titles = r.total === AWARD_TITLES.length ? AWARD_TITLES : Array.from({ length: r.total }, (_, i) => r.awards[i]?.title ?? "?");
+  return h(
+    "ol",
+    { class: "res-strip" },
+    titles.map((title, i) => {
+      const a = r.awards[i];
+      const state = i === current ? "now" : a ? "done" : "sealed";
+      return h("li", { class: `res-strip__slot res-strip__slot--${state}${i === titles.length - 1 ? " res-strip__slot--main" : ""}` }, h("span", { class: "res-strip__title" }, title), h("span", { class: "res-strip__team" }, state === "sealed" ? "? ? ?" : a.team?.name ?? "Nobody"));
+    })
+  );
+}
+
+// A long team name on an award shrinks until the whole screen fits: never cut off, never overlapping.
+function fitResults() {
+  const res = document.querySelector(".res");
+  const big = res?.querySelector(".res-main__team, .res-cert__team");
+  if (!big) return;
+  big.style.fontSize = "";
+  const gap = parseFloat(getComputedStyle(res).rowGap) || 0;
+  const pad = parseFloat(getComputedStyle(res).paddingTop) + parseFloat(getComputedStyle(res).paddingBottom);
+  const needed = () => [...res.children].reduce((sum, c) => sum + c.getBoundingClientRect().height, 0) + gap * (res.children.length - 1) + pad;
+  let size = parseFloat(getComputedStyle(big).fontSize);
+  while (needed() > res.clientHeight && size > 24) {
+    size *= 0.92;
+    big.style.fontSize = `${size}px`;
+  }
+}
+
 function resultsView(s) {
   const r = s.results;
-  if (!r || r.step === 0) return h("div", { class: "pencils" }, h("h1", {}, "The", h("br"), "results"), h("p", {}, "Four side quests, then User unfriendliest"));
-  const a = r.awards[r.step - 1];
+  if (!r) return h("div", { class: "pencils" }, h("h1", {}, "The", h("br"), "results"));
+  if (r.ended) return endView(s);
+  if (r.step === 0) {
+    return h(
+      "div",
+      { class: "res res--intro" },
+      h("p", { class: "res__kicker" }, "Stickers are closed · the judges have spoken"),
+      h("h1", { class: "res__big" }, "The results"),
+      h("div", { class: "res-load", "aria-hidden": "true" }, h("span", {}, "Computing user unfriendliness"), h("i", {}, h("b")), h("span", {}, "99%")),
+      h("p", { class: "res__sub" }, "Four side quests, decided by your stickers. Then User unfriendliest, decided by the judges."),
+      awardStrip(r, -1)
+    );
+  }
+  const i = r.step - 1;
+  const a = r.awards[i];
+  const main = a.key === "main";
+  const features = featuresOf(s, a.team);
+  const people = a.team ? a.team.members.map((m) => m.certName ?? m.name).join(" · ") : "Nobody earned this one";
+  if (main) {
+    return h(
+      "div",
+      { class: "res res--main", key: r.step },
+      h("p", { class: "res__kicker" }, "The main award · decided by the judges"),
+      h("p", { class: "res__award" }, "User unfriendliest"),
+      h("div", { class: "res-main" }, h("span", { class: "uu-track res-main__track" }, h("span", { class: "uu-track__tag" }, "user_unfriendliest · confidence 0.99")), h("p", { class: "res-main__team" }, a.team?.name ?? "Nobody")),
+      h("p", { class: "res__people" }, people),
+      features.length ? h("p", { class: "res__feature" }, "Ruined: ", features.join(" + ")) : null,
+      awardStrip(r, i)
+    );
+  }
+  const detail = a.detail?.stickers ? `${a.detail.stickers} of ${a.detail.of} ${a.title} stickers` : null;
   return h(
     "div",
-    { class: "reveal", key: r.step },
-    h("span", { class: "reveal__title" }, a.key === "main" ? "And the winner of" : "Side quest", " · ", a.title),
-    a.team ? h("p", { class: `reveal__team${a.key === "main" ? " reveal__team--main" : ""}` }, a.team.name) : h("p", { class: "reveal__team" }, "Nobody"),
-    a.team ? h("p", { class: "reveal__people" }, a.team.members.map((m) => m.name).join(" · ")) : h("p", { class: "reveal__people" }, "Nobody earned this one")
+    { class: "res res--quest", key: r.step },
+    h("p", { class: "res__kicker" }, `Side quest ${r.step} of ${r.total - 1} · decided by your stickers`),
+    h("p", { class: "res__award" }, a.title),
+    h(
+      "div",
+      { class: "uu-window res-cert" },
+      h("div", { class: "uu-window__bar" }, h("span", {}, "CERTIFICATE_ISSUED.EXE"), h("span", {}, detail ?? "")),
+      h("div", { class: "res-cert__body" }, h("p", { class: "res-cert__team" }, a.team?.name ?? "Nobody"), h("p", { class: "res__people" }, people), features.length ? h("p", { class: "res__feature" }, "Ruined: ", features.join(" + ")) : null)
+    ),
+    awardStrip(r, i)
+  );
+}
+
+// After the last award: the logo, a thank-you and the winners, for as long as it's left up.
+function endView(s) {
+  const r = s.results;
+  return h(
+    "div",
+    { class: "res-end" },
+    h("div", { class: "res-end__logo" }, logo()),
+    h("p", { class: "res-end__thanks" }, "Thanks for breaking things."),
+    h("p", { class: "res-end__sub" }, "Certificates are on their way. Now go and fix your websites."),
+    h(
+      "ul",
+      { class: "res-end__list" },
+      r.awards.map((a) => h("li", { class: a.key === "main" ? "res-end__main" : "" }, h("span", {}, a.title), h("b", {}, a.team?.name ?? "Nobody")))
+    )
   );
 }
 
@@ -199,7 +289,10 @@ function render() {
   lastSig = sig;
   const views = { join: joinView, deal: dealView, build: buildView, present: presentView, results: resultsView };
   $("stage").replaceChildren((views[state.phase] ?? laterView)(state));
-  requestAnimationFrame(fitWall);
+  requestAnimationFrame(() => {
+    fitWall();
+    fitResults();
+  });
 }
 
 // The clock: every frame from the end time, so it's right straight after the laptop wakes.

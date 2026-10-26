@@ -319,8 +319,9 @@ export function resultsStart(ctx) {
 export function reveal(ctx, { back }) {
   const { ix, store } = ctx;
   if (ix.phase !== "results") return { error: "THE RESULTS HAVEN'T STARTED." };
+  // One step past the last award is the end screen, which can stay up as long as you like.
   const total = ix.meta.results_json.awards.length;
-  const step = Math.max(0, Math.min(total, (ix.meta.results_step ?? 0) + (back === true ? -1 : 1)));
+  const step = Math.max(0, Math.min(total + 1, (ix.meta.results_step ?? 0) + (back === true ? -1 : 1)));
   return store.tx(() => {
     store.setMeta("results_step", step);
     store.audit("host", "reveal", { step });

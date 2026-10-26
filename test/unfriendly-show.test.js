@@ -2,6 +2,10 @@
 // and the certificate lists. Plus the scoring on its own.
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { execFileSync } from "node:child_process";
 import WebSocket from "ws";
 import { createUnfriendlyServer } from "../server/unfriendly/server.js";
 import { openStore } from "../server/unfriendly/store.js";
@@ -138,6 +142,22 @@ test("links, presenting, judges, stickers and results", { timeout: 30_000 }, asy
     const text = bytes.toString("utf8");
     assert.ok(text.includes("Award,Team,Name on certificate"));
     assert.ok(text.includes("Best UI"));
+
+    // One click: every file in one zip that opens with a double-click.
+    const zipped = Buffer.from(await (await fetch(`http://127.0.0.1:${ports.screen}/export/certificates.zip`)).arrayBuffer());
+    assert.equal(zipped.readUInt32LE(0), 0x04034b50, "a zip file");
+    const zipPath = path.join(os.tmpdir(), `uu-${process.pid}.zip`);
+    fs.writeFileSync(zipPath, zipped);
+    const listing = execFileSync("unzip", ["-l", zipPath], { encoding: "utf8" });
+    for (const name of ["winners.csv", "participants.csv", "judges.csv", "everything.json"]) assert.ok(listing.includes(name), name);
+    assert.ok(execFileSync("unzip", ["-p", zipPath, "winners.csv"], { encoding: "utf8" }).includes("Award,Team,Name on certificate"));
+    fs.unlinkSync(zipPath);
+
+    // After the last award, one more step is the end screen; it stays there.
+    for (let i = 0; i < 6; i += 1) await run("reveal");
+    const end = await until(host, (m) => m.t === "host" && m.results?.ended === true);
+    assert.equal(end.results.awards.length, end.results.total);
+    assert.equal((await run("reveal")).step, end.results.total + 1, "no further than the end screen");
     for (const ws of [...members.flatMap((m) => [m.a, m.b]), stranger, judge, judge2, fan, watcher]) ws.close();
     host.close();
   } finally {

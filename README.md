@@ -31,7 +31,7 @@ These steps are for a Mac.
    ```
    Every test should pass.
 
-**Optional: choose the judges' PIN.** Copy `.env.example` to `.env` and put a 4–8 digit PIN after `UU_JUDGE_PIN=`. You can also type it into the start command instead (see below). Without one, the app picks a random PIN, shown in the host panel while you hold **HOLD TO SHOW THE PIN**.
+**The judges' PIN is 6767.** To use another one, put it in front of the first start: `UU_JUDGE_PIN=482193 npm run unfriendly -- --fresh` (or in `.env`). The host panel shows it while you hold **HOLD TO SHOW THE PIN**.
 
 ## On the day
 
@@ -40,13 +40,15 @@ cd ~/Desktop/user-unfriendly
 npm run unfriendly -- --fresh
 ```
 
+After that, to start it again at any point, **double-click `Start USER UNFRIENDLY.command`** in the app's folder (or run `npm run unfriendly`). It remembers how it was last started.
+
 Type `FRESH` when it asks. This starts a new, empty event; any test data is archived, not deleted. To set the judges' PIN at the same time:
 
 ```bash
 UU_JUDGE_PIN=482193 npm run unfriendly -- --fresh
 ```
 
-When Terminal shows `Phones join at: https://…trycloudflare.com`:
+Phones join over the **same Wi-Fi** as the laptop (LAN) unless you start it with `--tunnel`. When Terminal shows `Phones on this Wi-Fi join at: http://…:3300` (click **Allow** if macOS asks about incoming connections):
 
 - **Big screen:** open http://localhost:3301 in Chrome, drag the window to the projector and make it full screen (control ⌘ F).
 - **Host panel:** open http://localhost:3301/host on the laptop's own screen.
@@ -59,9 +61,10 @@ The manual has everything else.
 
 | Command | What it does |
 |---|---|
-| `npm run unfriendly` | Start, or carry on with, the event. Phones join through a free Cloudflare tunnel. |
+| `npm run unfriendly` | Start, or carry on with, the event, the way it was started last time (LAN the first time). |
+| `npm run unfriendly -- --tunnel` | Phones join through a free Cloudflare tunnel instead, for a Wi-Fi that keeps devices apart. Remembered for later starts. |
 | `npm run unfriendly -- --fresh` | Archive the current event and start a new one (asks you to type FRESH). |
-| `npm run unfriendly -- --lan` | Phones on the same Wi-Fi join the laptop directly, with no tunnel. |
+| `npm run unfriendly -- --lan` | Back to LAN: phones on the same Wi-Fi join the laptop directly. The link stays the same after a restart. |
 | `npm run unfriendly -- --offline` | Host panel only, no phones. Used to nudge the build clock while the app is otherwise off. |
 | `npm run unfriendly -- --clock` | Also open the offline build clock, which counts down without the app. |
 | `npm run unfriendly -- --preview` | A separate practice copy on ports 3310/3311 with its own data. It never touches the real event. |
@@ -78,7 +81,7 @@ Extra options: `--scale 0.1` makes every duration a tenth (for drills), `--db <f
 - **The database is the state.** Everything is saved to `data/unfriendly/unfriendly.db` (SQLite, built into Node) the moment it happens, before anyone is told. A restart, even after a crash, carries on exactly. Nothing changes phase on a timer: the host presses a button for every step. Backups go to `data/unfriendly/backups/`.
 - **The build clock never stops.** The big screen counts down from the end time even with the app stopped. A self-contained clock page is also written to `data/unfriendly/clock/`, and the display is kept awake until 15 minutes after pencils down.
 - **Phones get back in by themselves.** A phone remembers who it is. After a restart (which gives a new tunnel link) people rescan the QR, type their team code and tap their name. Judges enter the PIN and tap their name.
-- **Results.** The main award, User unfriendliest, comes from the judges' ratings: each judge's ratings are normalised against their own average, then the top and bottom 10% are trimmed. The four side quests come from sticker shares, with each team winning at most one title. Downloads: `winners.csv`, `participants.csv`, `judges.csv`, `everything.json`.
+- **Results.** The main award, User unfriendliest, comes from the judges' ratings: each judge's ratings are normalised against their own average, then the top and bottom 10% are trimmed. The four side quests come from sticker shares, with each team winning at most one title. One click downloads `certificates.zip` with `winners.csv`, `participants.csv`, `judges.csv` and `everything.json`. After the last award, one more press shows an end screen that can stay up.
 
 ## Layout
 
