@@ -119,6 +119,8 @@ export const QUESTS = [
   { kind: "creative", name: "Most creative UX" },
   { kind: "worst-feature", name: "Best worst feature" },
 ];
+// How many features each team is dealt to ruin (one swap per team either way).
+export const CARDS_PER_TEAM = 1;
 export const QUEST_EACH = 3;
 // Just for fun: they don't count, at most a few per person per team.
 export const JOKES = [

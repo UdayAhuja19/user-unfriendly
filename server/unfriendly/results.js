@@ -118,11 +118,11 @@ export function winnersCsv(results) {
 }
 
 export function participantsCsv(ix, presented) {
-  const rows = [["Name on certificate", "Name", "Team", "Feature 1", "Feature 2", "Presented"]];
+  const rows = [["Name on certificate", "Name", "Team", "Feature", "Presented"]];
   for (const t of ix.teams) {
     for (const p of ix.members.get(t.id) ?? []) {
-      const [a, b] = t.cards.map((id) => feature(id)?.name ?? id);
-      rows.push([p.cert_name ?? p.name, p.name, t.name, a ?? "", b ?? "", presented.has(t.id) ? "yes" : "no"]);
+      const features = t.cards.map((id) => feature(id)?.name ?? id).join(" + ");
+      rows.push([p.cert_name ?? p.name, p.name, t.name, features, presented.has(t.id) ? "yes" : "no"]);
     }
   }
   return csv(rows);

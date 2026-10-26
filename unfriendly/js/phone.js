@@ -120,6 +120,9 @@ async function submitLookup(event) {
   if (reply.t === "found") {
     ui.found = reply.team.members.map((m) => ({ id: m.id, name: m.name, team: reply.team.name }));
     ui.foundBy = { code };
+    // A team the host added late: someone not on its list can join it here with their name.
+    ui.lateTeam = reply.team.canJoin ? { code, name: reply.team.name } : null;
+    ui.joiningLate = ui.found.length === 0 && Boolean(ui.lateTeam);
     render();
   }
 }
@@ -198,6 +201,8 @@ const go = (mode) => () => {
   ui.mode = mode;
   ui.error = "";
   ui.found = null;
+  ui.lateTeam = null;
+  ui.joiningLate = false;
   render();
 };
 
@@ -243,9 +248,9 @@ function featureCards(team, { canSwap, animate }) {
       h(
         "div",
         { class: `uu-card feature${animate ? " flip" : ""}` },
-        h("span", { class: "uu-card__kind" }, `Feature ${slot + 1} · ruin it`),
+        h("span", { class: "uu-card__kind" }, team.cards.length > 1 ? `Feature ${slot + 1} · ruin it` : "Your feature · ruin it"),
         h("p", { class: "uu-card__name" }, card.name),
-        canSwap ? h("button", { class: "uu-btn feature__swap", type: "button", onclick: () => swap(card, slot) }, "Swap this one") : null
+        canSwap ? h("button", { class: "uu-btn feature__swap", type: "button", onclick: () => swap(card, slot) }, team.cards.length > 1 ? "Swap this one" : "Swap it") : null
       )
     )
   );
@@ -399,7 +404,23 @@ function poolScreen() {
   ];
 }
 
+async function submitLateJoin(event) {
+  event.preventDefault();
+  const name = personName(value("f-name"));
+  ui.error = name.error ?? "";
+  if (ui.error) return render();
+  rememberName(name.name);
+  await run({ t: "join", name: name.name, code: ui.lateTeam.code });
+}
+
 function backScreen(byName) {
+  if (ui.joiningLate && ui.lateTeam) {
+    return [
+      back(),
+      h("h1", { class: "p-title" }, "Join ", ui.lateTeam.name),
+      h("form", { class: "form", onsubmit: submitLateJoin, novalidate: true }, nameField(), err(), submit("Join the team")),
+    ];
+  }
   const parts = [back(), h("h1", { class: "p-title" }, "Get back in")];
   if (ui.found) {
     parts.push(
@@ -410,7 +431,9 @@ function backScreen(byName) {
         ui.found.map((p) => h("button", { class: "uu-btn", type: "button", disabled: ui.busy, onclick: () => claim(p) }, p.name, h("small", {}, p.team ?? "Waiting for a team")))
       ),
       err(),
-      h("button", { class: "linkish", type: "button", onclick: () => ((ui.found = null), render()) }, "None of these")
+      ui.lateTeam
+        ? h("button", { class: "linkish", type: "button", onclick: () => ((ui.joiningLate = true), render()) }, "I'm not on the list: join this team")
+        : h("button", { class: "linkish", type: "button", onclick: () => ((ui.found = null), render()) }, "None of these")
     );
     return parts;
   }
@@ -454,7 +477,7 @@ function personScreen(view) {
   const team = view.team;
   const parts = [];
   if (view.phase === "join") {
-    parts.push(h("h1", { class: "p-title" }, "You're in"), teamWindow(view), h("p", { class: "note" }, "When everyone's in a team, the host deals each team two features to ruin. Watch this phone."));
+    parts.push(h("h1", { class: "p-title" }, "You're in"), teamWindow(view), h("p", { class: "note" }, "When everyone's in a team, the host deals each team a feature to ruin. Watch this phone."));
   } else if (view.phase === "deal") {
     parts.push(h("h1", { class: "p-title" }, "Your features"));
     if (team.canSwap) parts.push(countdown("Swap one card · time left", team.swapUntil));
@@ -462,7 +485,7 @@ function personScreen(view) {
     const cardKey = team.cards.map((c) => c.id).join();
     const animate = cardKey !== ui.cardsShown;
     ui.cardsShown = cardKey;
-    parts.push(featureCards(team, { canSwap: team.canSwap, animate }), h("p", { class: "p-sub" }, "Build a site that looks great, where these two are horrible to use."), teamWindow(view));
+    parts.push(featureCards(team, { canSwap: team.canSwap, animate }), h("p", { class: "p-sub" }, "Build a site that looks great, where this is horrible to use."), teamWindow(view));
   } else if (view.phase === "build") {
     parts.push(h("h1", { class: "p-title" }, "Build it"), countdown(`Pencils down at ${timeOfDay(view.build.endAt)}`, view.build.endAt));
     if (view.links.open) {
@@ -470,7 +493,7 @@ function personScreen(view) {
         h("section", { class: "uu-window team" }, h("div", { class: "uu-window__bar" }, h("span", {}, "SEND_LINK.EXE"), h("span", {}, team.link ? "Sent ✓" : "Not sent")), h("div", { class: "uu-window__body" }, team.link ? h("p", { class: "p-sub" }, team.link.ownLaptop ? "Your team shows its own laptop." : `Sent: ${team.link.host}. Send again to change it.`) : h("p", { class: "p-sub" }, "One of you: paste your site's share link."), linkForm(false)))
       );
     }
-    parts.push(featureCards(team, { canSwap: false }), h("p", { class: "p-sub" }, "Make it look great. Make these two horrible to use."), teamWindow(view));
+    parts.push(featureCards(team, { canSwap: false }), h("p", { class: "p-sub" }, "Make it look great. Make this horrible to use."), teamWindow(view));
   } else if (view.phase === "present") {
     parts.push(showSlab(view.show, Boolean(view.stickers)), stickerSection(view));
   } else if (view.phase === "results") {
@@ -527,7 +550,7 @@ function render() {
   $("state").classList.toggle("phone__state--warn", warn);
   const { key, nodes } = screen();
   // Only rebuild when what's shown changed, so typing isn't interrupted.
-  const sig = key ?? JSON.stringify({ mode: ui.mode, view: ui.view && { ...ui.view, serverNow: 0 }, who: ui.who && { ...ui.who, serverNow: 0 }, found: ui.found, error: ui.error, busy: ui.busy, online: ui.status === "online" });
+  const sig = key ?? JSON.stringify({ mode: ui.mode, view: ui.view && { ...ui.view, serverNow: 0 }, who: ui.who && { ...ui.who, serverNow: 0 }, found: ui.found, late: ui.joiningLate && ui.lateTeam, error: ui.error, busy: ui.busy, online: ui.status === "online" });
   if (sig === lastShown) return;
   lastShown = sig;
   replaceKeeping($("main"), nodes.filter(Boolean));

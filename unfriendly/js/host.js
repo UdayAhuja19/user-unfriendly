@@ -64,6 +64,49 @@ function settingsPanel(v) {
   );
 }
 
+// Add a team: late arrivals or a team formed on the spot, at any time before the results.
+// What's typed is kept here, so a redraw of the panel never loses it.
+const draft = { name: "", members: "" };
+function addTeamPanel(v) {
+  if (v.phase === "results") return null;
+  const submit = async (event) => {
+    event.preventDefault();
+    const members = draft.members.split(/\n|,/).map((s) => s.trim()).filter(Boolean);
+    const where = { join: "", deal: "It's dealt its feature straight away.", build: "It's dealt its feature straight away.", present: "It's dealt its feature and goes to the end of the running order." }[v.phase] ?? "";
+    const who = members.length ? `Members: ${members.join(", ")}.` : "No members yet: they join from their phones with the team code.";
+    if (!(await ask(`Add ${draft.name.trim() || "this team"}?`, `${who}\n${where}`, { yes: "Add team", no: "Cancel" }))) return;
+    const result = await command("addTeam", { name: draft.name, members });
+    if (result.error) return;
+    draft.name = "";
+    draft.members = "";
+    lastSig = "";
+    render();
+    await ask(
+      `Team code: ${result.code}`,
+      "Tell the team (not the room). On their phones: open the app, tap I was already in (or I'm in a team), type the code, then tap their name, or \"I'm not on the list\" to join.",
+      { yes: "Done", no: "Close", bar: "TEAM ADDED" }
+    );
+  };
+  return h(
+    "section",
+    { class: "panel" },
+    h("h2", {}, "Add a team"),
+    h("p", { class: "p-small" }, v.phase === "join" ? "Phones make their own teams now. Use this for people without a phone." : "For a team that arrives late or forms on the spot. It gets a code and a feature, and if presenting has started, the last slot."),
+    h(
+      "form",
+      { class: "form", onsubmit: submit, novalidate: true },
+      h("label", { class: "field" }, h("span", { class: "field__label" }, "Team name"), h("input", { class: "input", id: "add-team-name", maxlength: 24, autocomplete: "off", value: draft.name, oninput: (e) => (draft.name = e.target.value) })),
+      h(
+        "label",
+        { class: "field" },
+        h("span", { class: "field__label" }, "Members, one per line (optional)"),
+        h("textarea", { class: "input", id: "add-team-members", rows: 4, oninput: (e) => (draft.members = e.target.value) }, draft.members)
+      ),
+      h("button", { class: "uu-btn uu-btn--ink btn-block", type: "submit" }, "Add team")
+    )
+  );
+}
+
 function phasePanel(v) {
   const now = link.serverNow();
   const parts = [h("h2", {}, { join: "1 · Join", deal: "2 · The deal", build: "3 · Build" }[v.phase] ?? v.phase)];
@@ -76,7 +119,7 @@ function phasePanel(v) {
           class: "uu-btn uu-btn--red btn-block",
           type: "button",
           onclick: async () => {
-            if (await ask("Deal the cards?", `${v.counts.teams} teams get two features each. You can undo it for two minutes.`, { yes: "Deal", no: "Not yet" })) command("deal", {}, "DEALT.");
+            if (await ask("Deal the cards?", `${v.counts.teams} teams get one feature each. You can undo it for two minutes.`, { yes: "Deal", no: "Not yet" })) command("deal", {}, "DEALT.");
           },
         },
         "Deal the cards"
@@ -389,14 +432,14 @@ function render() {
   );
   // Don't rebuild while a menu is open or a box is being typed in.
   const active = document.activeElement;
-  if (active && (active.tagName === "SELECT" || active.tagName === "INPUT") && $("side").parentElement.contains(active)) {
+  if (active && (active.tagName === "SELECT" || active.tagName === "INPUT" || active.tagName === "TEXTAREA") && $("side").parentElement.contains(active)) {
     waitingToRender = true;
     return;
   }
   const sig = JSON.stringify({ ...view, serverNow: 0 });
   if (sig === lastSig) return;
   lastSig = sig;
-  $("side").replaceChildren(...[phasePanel(view), judgesPanel(view), view.phase === "join" || view.phase === "deal" ? settingsPanel(view) : null, waitingPanel(view)].filter(Boolean));
+  $("side").replaceChildren(...[phasePanel(view), judgesPanel(view), view.phase === "join" || view.phase === "deal" ? settingsPanel(view) : null, waitingPanel(view), addTeamPanel(view)].filter(Boolean));
   $("teams").replaceChildren(h("div", { class: "teams-grid" }, view.teams.length ? view.teams.map((t) => teamCard(view, t)) : h("p", {}, "No teams yet.")));
 }
 document.addEventListener("focusout", () => {

@@ -51,6 +51,7 @@ const HOST_COMMANDS = {
   nudge: cmd.nudge,
   person: cmd.editPerson,
   team: cmd.editTeam,
+  addTeam: cmd.addTeam,
   linksOpen: show.linksOpen,
   linksExtend: show.linksExtend,
   hostLink: show.hostLink,

@@ -186,3 +186,69 @@ test("links and CSV are safe", () => {
   for (const bad of ["javascript:alert(1)", "http://192.168.1.4:3000", "https://user:pw@x.com", "file:///etc/passwd", "http://intranet"]) assert.ok(siteUrl(bad).error, bad);
   assert.equal(csv([["=SUM(A1)", "Zoë, \"Z\""]]), '﻿\'=SUM(A1),"Zoë, ""Z"""\r\n');
 });
+
+test("the host adds a team late: a code, a feature, the last slot, and joins by code", { timeout: 20_000 }, async () => {
+  const store = await openStore(":memory:", { judgePin: "2710" });
+  const server = createUnfriendlyServer({ store, tickMs: 20 });
+  const ports = await server.listen({ phonePort: 0, screenPort: 0 });
+  const url = `ws://127.0.0.1:${ports.phone}/ws`;
+  const host = await open(`ws://127.0.0.1:${ports.screen}/ws`, { origin: `http://127.0.0.1:${ports.screen}` });
+  host.send(JSON.stringify({ t: "hello", role: "host" }));
+  const run = async (t, payload = {}) => {
+    const op = `host-${(seq += 1)}`;
+    host.send(JSON.stringify({ t, op, ...payload }));
+    return until(host, (m) => m.t === "result" && m.op === op);
+  };
+  const phone = async (cid) => {
+    const ws = await open(url);
+    ws.send(JSON.stringify({ t: "hello", cid }));
+    await until(ws, (m) => m.t === "who" || m.t === "view");
+    return ws;
+  };
+  try {
+    const a = await phone("early-maker-01");
+    assert.equal((await act(a, { t: "make", name: "Early Bird", team: "On Time" })).t, "ok");
+    const onTime = store.all("SELECT code FROM teams WHERE name = 'On Time'")[0].code;
+    assert.equal((await run("deal")).ok, true);
+    assert.equal((await run("buildStart", { minutes: 55 })).ok, true);
+
+    // During the build: dealt one feature straight away.
+    const built = await run("addTeam", { name: "Walk Ins", members: ["Ana Late", "Bo Late"] });
+    assert.equal(built.ok, true);
+    assert.match(built.code, /^[A-Z]{4}$/);
+    const walkIns = store.all("SELECT id FROM teams WHERE name = 'Walk Ins'")[0].id;
+    assert.equal(store.all("SELECT COUNT(*) AS n FROM team_cards WHERE team_id = ?", walkIns)[0].n, 1);
+    assert.equal((await run("addTeam", { name: "Walk Ins", members: [] })).ok, undefined, "names stay unique");
+    assert.match((await run("addTeam", { name: "Twins", members: ["Sam Same", "sam same"] })).error, /SAME NAME/);
+
+    assert.equal((await run("presentStart", { minutes: 40 })).ok, true);
+    // During presenting: last in the running order.
+    const late = await run("addTeam", { name: "Very Late", members: [] });
+    assert.equal(late.ok, true);
+    const order = store.all("SELECT team_id FROM demos ORDER BY slot");
+    assert.equal(order.length, 3);
+    assert.equal(order.at(-1).team_id, store.all("SELECT id FROM teams WHERE name = 'Very Late'")[0].id);
+
+    // Phones: an old team stays locked, the late team takes a new member by code.
+    const newcomer = await phone("late-joiner-01");
+    assert.match((await act(newcomer, { t: "join", name: "Cy New", code: onTime })).error, /LOCKED/);
+    const found = await act(newcomer, { t: "lookup", code: late.code });
+    assert.equal(found.team.canJoin, true);
+    assert.equal((await act(newcomer, { t: "join", name: "Cy New", code: late.code })).t, "ok");
+    const { view } = await lastView(newcomer, (v) => v.team);
+    assert.equal(view.team.name, "Very Late");
+    assert.equal(view.team.cards.length, 1);
+    // A member the host typed in gets back in with the code and their name.
+    const ana = await phone("ana-phone-01");
+    const list = await act(ana, { t: "lookup", code: built.code });
+    const me = list.team.members.find((m) => m.name === "Ana Late");
+    assert.equal((await act(ana, { t: "claim", personId: me.id, code: built.code })).t, "ok");
+
+    // After the results, no more teams.
+    for (let i = 0; i < 3; i += 1) await run("next");
+    assert.equal((await run("resultsStart")).ok, true);
+    assert.match((await run("addTeam", { name: "Too Late", members: [] })).error, /RESULTS/);
+  } finally {
+    await server.close();
+  }
+});

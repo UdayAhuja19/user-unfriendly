@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { nameKey, personName, teamCode, teamName } from "../unfriendly/js/shared/rules.js";
-import { FEATURES, dealPair, drawCard, groupPool, newCode, newPile, swapCard } from "../server/unfriendly/deck.js";
+import { FEATURES, dealHand, drawCard, groupPool, newCode, newPile, swapCard } from "../server/unfriendly/deck.js";
 
 // A seeded random, so every run deals the same cards.
 function seeded(seed = 7) {
@@ -48,12 +48,13 @@ test("the deck: 24 different features, no repeats until it runs out, never twice
   const random = seeded(3);
   const pile = newPile(random);
   const dealt = [];
-  for (let i = 0; i < 12; i += 1) dealt.push(dealPair(pile, random).cards);
-  assert.equal(new Set(dealt.flat()).size, 24, "12 teams use the whole deck once");
+  for (let i = 0; i < 24; i += 1) dealt.push(dealHand(pile, random).cards);
+  assert.equal(new Set(dealt.flat()).size, 24, "24 teams use the whole deck once");
   // Keep dealing past the end of the deck: still never the same card twice to one team.
   for (let i = 0; i < 30; i += 1) {
-    const { cards } = dealPair(pile, random);
+    const { cards } = dealHand(pile, random, 2);
     assert.notEqual(cards[0], cards[1]);
+    assert.equal(dealHand(pile, random).cards.length, 1, "one feature per team by default");
   }
 });
 

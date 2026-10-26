@@ -101,7 +101,7 @@ function dealView(s) {
   return h(
     "div",
     { class: "dealview" },
-    h("div", { class: "dealview__head" }, h("h1", {}, "The deal"), h("p", { class: "join__lead" }, "Every team has two features to ruin. One swap each, in the next five minutes.")),
+    h("div", { class: "dealview__head" }, h("h1", {}, "The deal"), h("p", { class: "join__lead" }, "Every team has one feature to ruin. One swap each, in the next five minutes.")),
     wall(s.teams, { cards: true })
   );
 }
@@ -151,7 +151,7 @@ function presentView(s) {
     "div",
     { class: "present" },
     h("div", { class: "present__now" }, h("span", { class: "present__label" }, h("span", { class: "tracked" }, h("span", { class: "tag" }, "USER_ON_STAGE"), `Team ${cur.slot + 1} of ${show.total}`)), h("p", { class: "present__name" }, cur.name), h("p", { class: "present__people" }, cur.members.join(" · "))),
-    h("div", { class: "present__cards" }, cur.cards.map((c, i) => h("div", { class: "uu-card" }, h("span", { class: "uu-card__kind" }, `Feature ${i + 1} · ruined`), h("p", { class: "uu-card__name" }, c)))),
+    h("div", { class: "present__cards" }, cur.cards.map((c, i) => h("div", { class: "uu-card" }, h("span", { class: "uu-card__kind" }, cur.cards.length > 1 ? `Feature ${i + 1} · ruined` : "The feature · ruined"), h("p", { class: "uu-card__name" }, c)))),
     h("div", { class: "present__side" }, clockBox, stickerQr, h("div", { class: "present__next" }, h("span", { class: "mono" }, "Up next"), show.next.length ? show.next.map((n) => h("span", {}, n)) : h("span", {}, "Nobody: last one"))),
     h("p", { class: "present__foot" }, "Judges are rating · stickers decide the side quests")
   );

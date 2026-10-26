@@ -105,15 +105,15 @@ test("80 phones make 20 teams, the host deals, teams swap, and the big screen ne
     for (const t of ["deal", "settings", "buildStart", "person", "group"]) send(extra, { t, op: op(), maxTeams: 1 });
 
     assert.ok((await app.run("deal")).ok);
-    const views = await Promise.all([...makers, ...joiners].map((ws) => until(ws, "view", (m) => m.view.team?.cards.length === 2)));
-    for (const v of views) assert.notEqual(v.view.team.cards[0].id, v.view.team.cards[1].id);
+    const views = await Promise.all([...makers, ...joiners].map((ws) => until(ws, "view", (m) => m.view.team?.cards.length === 1)));
+    for (const v of views) assert.equal(v.view.team.cards.length, 1);
     const state = await until(app.screen, "state", (m) => m.phase === "deal");
     for (const code of codes) assert.ok(!JSON.stringify(state).includes(code), "no team code on the big screen");
 
     // Swaps: one per team, the second teammate gets "already".
     const swapped = await act(makers[0], { t: "swap", slot: 0 });
     assert.equal(swapped.t, "ok");
-    const again = await act(joiners[0], { t: "swap", slot: 1 }); // joiner 0 is in team 0
+    const again = await act(joiners[0], { t: "swap", slot: 0 }); // joiner 0 is in team 0
     assert.equal(again.t, "ok");
     const team0 = (await until(joiners[0], "view", (m) => m.view.team.swapped)).view.team;
     assert.equal(team0.swapped, true);
@@ -221,7 +221,7 @@ test("kill -9 at any moment: the server starts again exactly where it was", { ti
 
   // ---- Dealt, killed in the swap window ----
   assert.ok((await run("deal")).ok);
-  const dealt = (await until(a2, "view", (m) => m.view.team.cards.length === 2)).view.team;
+  const dealt = (await until(a2, "view", (m) => m.view.team.cards.length === 1)).view.team;
   s.child.kill("SIGKILL");
   await new Promise((r) => s.child.once("exit", r));
 
@@ -232,7 +232,7 @@ test("kill -9 at any moment: the server starts again exactly where it was", { ti
   assert.deepEqual(view.team.cards, dealt.cards, "the same cards");
   assert.equal(view.team.swapUntil, dealt.swapUntil, "the same swap deadline");
   assert.equal(view.team.canSwap, true);
-  assert.equal((await act(a2, { t: "swap", slot: 1 })).t, "ok");
+  assert.equal((await act(a2, { t: "swap", slot: 0 })).t, "ok");
 
   // ---- Build started, killed: the end time survives ----
   assert.ok((await run("buildStart", { minutes: 55 })).ok);

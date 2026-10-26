@@ -4,8 +4,8 @@
 // ctx = { store, ix (from event.index), now, random, scale }
 // A phone's actions also get `me`: the person its device is bound to, or null.
 import { nameKey, personName, teamName, teamCode, SWAP_MS, MAX_TEAMS_LIMIT, MAX_SIZE_LIMIT, MIN_SIZE_LIMIT } from "../../unfriendly/js/shared/rules.js";
-import { canLeave, canRename, canSwap, hasRoom, isOpen, makeError } from "./event.js";
-import { dealPair, groupPool, newCode, newPile, swapCard } from "./deck.js";
+import { acceptsJoins, canLeave, canRename, canSwap, hasRoom, isOpen, makeError } from "./event.js";
+import { dealHand, groupPool, newCode, newPile, swapCard } from "./deck.js";
 
 const UNDO_DEAL_MS = 2 * 60_000;
 
@@ -34,7 +34,7 @@ function pile(ctx) {
   return ctx.store.getMeta("deck_pile") ?? newPile(ctx.random);
 }
 
-// Deals one team its two cards and opens its own swap window.
+// Deals one team its cards and opens its own swap window.
 function dealTeam(ctx, teamId, cards) {
   const { store, now } = ctx;
   cards.forEach((card, slot) => store.run("INSERT INTO team_cards (team_id, slot, feature, dealt_at) VALUES (?, ?, ?, ?)", teamId, slot, card, now));
@@ -43,7 +43,7 @@ function dealTeam(ctx, teamId, cards) {
 
 function dealOne(ctx, teamId) {
   const draw = pile(ctx);
-  const { cards, refilled } = dealPair(draw, ctx.random);
+  const { cards, refilled } = dealHand(draw, ctx.random);
   dealTeam(ctx, teamId, cards);
   ctx.store.setMeta("deck_pile", draw);
   if (refilled) ctx.store.setMeta("deck_refills", (ctx.store.getMeta("deck_refills") ?? 0) + 1);
@@ -113,7 +113,7 @@ export function join(ctx, me, deviceId, { name, code }) {
   const clean = teamCode(code);
   const team = clean ? ctx.ix.teams.find((t) => t.code === clean) : null;
   if (!team) return { error: "NO TEAM HAS THAT CODE. CHECK IT WITH YOUR TEAM.", wrongCode: true };
-  if (!isOpen(ctx.ix)) return { error: "TEAMS ARE LOCKED. ASK AN ORGANISER." };
+  if (!acceptsJoins(ctx.ix, team)) return { error: "TEAMS ARE LOCKED. ASK AN ORGANISER." };
   if (!hasRoom(ctx.ix, team)) return { error: `${team.name.toUpperCase()} IS FULL (${ctx.ix.maxSize}). JOIN ANOTHER, OR TAP FIND ME A TEAM.` };
   return guarded(() =>
     ctx.store.tx(() => {
@@ -172,7 +172,7 @@ export function swap(ctx, me, deviceId, { slot }) {
   const team = ctx.ix.teamById.get(me.team_id);
   if (!team || team.dealt_at === null) return { error: "NO CARDS YET." };
   if (team.swapped_at !== null) return { ok: true, already: true };
-  if (slot !== 0 && slot !== 1) return { error: "PICK A CARD TO SWAP." };
+  if (!Number.isInteger(slot) || slot < 0 || slot >= team.cards.length) return { error: "PICK A CARD TO SWAP." };
   if (!canSwap(ctx.ix, team, ctx.now)) return { error: "THE SWAP WINDOW HAS CLOSED." };
   return ctx.store.tx(() => {
     const draw = pile(ctx);
@@ -192,7 +192,10 @@ export function lookup(ctx, { code }) {
   const clean = teamCode(code);
   const team = clean ? ctx.ix.teams.find((t) => t.code === clean) : null;
   if (!team) return { error: "NO TEAM HAS THAT CODE. CHECK IT WITH YOUR TEAM.", wrongCode: true };
-  return { ok: true, team: { name: team.name, code: team.code, members: (ctx.ix.members.get(team.id) ?? []).map((p) => ({ id: p.id, name: p.name })) } };
+  return {
+    ok: true,
+    team: { name: team.name, code: team.code, canJoin: acceptsJoins(ctx.ix, team) && hasRoom(ctx.ix, team), members: (ctx.ix.members.get(team.id) ?? []).map((p) => ({ id: p.id, name: p.name })) },
+  };
 }
 
 // No code? Your exact name (accents and case don't matter) finds you.
@@ -300,7 +303,7 @@ export function deal(ctx) {
     store.setMeta("refills_before_deal", store.getMeta("deck_refills") ?? 0);
     let refills = store.getMeta("deck_refills") ?? 0;
     for (const team of ix.teams) {
-      const { cards, refilled } = dealPair(draw, ctx.random);
+      const { cards, refilled } = dealHand(draw, ctx.random);
       if (refilled) refills += 1;
       dealTeam(ctx, team.id, cards);
     }
@@ -409,6 +412,36 @@ export function editPerson(ctx, { id, certName, teamId, remove }) {
     );
   }
   return { error: "NOTHING TO CHANGE." };
+}
+
+// The host adds a team at any point before the results: one that turns up late or forms on the spot.
+// It gets a code, its feature (once the deal has happened) and, if presenting has started, the last
+// slot in the running order. Members can be typed in now (they get back in with the code and their
+// name) or join from their phones with the code: a host-added team accepts joins until the results.
+export function addTeam(ctx, { name, members = [] }) {
+  const { ix, store, now } = ctx;
+  if (ix.phase === "results") return { error: "THE RESULTS ARE OUT." };
+  const tn = teamName(name);
+  if (tn.error) return { error: tn.error };
+  if (!Array.isArray(members) || members.length > ix.maxSize) return { error: `UP TO ${ix.maxSize} PEOPLE IN A TEAM.` };
+  const people = members.map((m) => personName(m));
+  const bad = people.find((p) => p.error);
+  if (bad) return { error: bad.error };
+  if (new Set(people.map((p) => p.key)).size !== people.length) return { error: "TWO OF THEM HAVE THE SAME NAME." };
+  return guarded(() =>
+    store.tx(() => {
+      const code = newCode(takenCodes(ctx), ctx.random);
+      const teamId = Number(store.run("INSERT INTO teams (code, name, name_key, origin, created_at) VALUES (?, ?, ?, 'host', ?)", code, tn.name, tn.key, now).lastInsertRowid);
+      for (const p of people) store.run("INSERT INTO people (role, name, name_key, team_id, created_at) VALUES ('participant', ?, ?, ?, ?)", p.name, p.key, teamId, now);
+      if (ix.phase !== "join") dealOne(ctx, teamId);
+      if (ix.phase === "present") {
+        const last = store.all("SELECT MAX(slot) AS m FROM demos")[0]?.m ?? -1;
+        store.run("INSERT INTO demos (slot, team_id) VALUES (?, ?)", last + 1, teamId);
+      }
+      store.audit("host", "addTeam", { name: tn.name, members: people.length, phase: ix.phase });
+      return { ok: true, code, teamId };
+    })
+  );
 }
 
 export function editTeam(ctx, { id, name, remove }) {

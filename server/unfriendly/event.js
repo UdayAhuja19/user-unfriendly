@@ -41,6 +41,8 @@ export function index(core) {
 // ---------- Rules ----------
 export const isOpen = (ix) => OPEN_PHASES.has(ix.phase);
 export const canMake = (ix) => isOpen(ix) && ix.teams.length < ix.maxTeams;
+// Teams lock at the build; a team the host added late takes joins by code until the results.
+export const acceptsJoins = (ix, team) => isOpen(ix) || (team.origin === "host" && ix.phase !== "results");
 export const hasRoom = (ix, team) => (ix.members.get(team.id)?.length ?? 0) < ix.maxSize;
 export const canLeave = (ix) => ix.phase === "join";
 export const canRename = (ix) => isOpen(ix);

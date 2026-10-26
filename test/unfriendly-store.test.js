@@ -86,28 +86,27 @@ test("make, join, pool, group, deal, swap: the whole start of the event", async 
   ix = h.ix();
   assert.equal(ix.phase, "deal");
   for (const t of ix.teams) {
-    assert.equal(t.cards.length, 2);
-    assert.notEqual(t.cards[0], t.cards[1]);
+    assert.equal(t.cards.length, 1);
     assert.equal(t.swap_until, h.now + 5 * 60_000);
   }
-  assert.equal(new Set(ix.teams.flatMap((t) => t.cards)).size, 4, "no repeats while the deck lasts");
+  assert.equal(new Set(ix.teams.flatMap((t) => t.cards)).size, ix.teams.length, "no repeats while the deck lasts");
 
   // A late team made after the deal is dealt at once.
   h.advance(60_000);
   assert.ok(h.phone("dev-late0000", "make", { name: "Late Lee", team: "Latecomers" }).ok);
   ix = h.ix();
   const late = ix.teams.find((t) => t.name === "Latecomers");
-  assert.equal(late.cards.length, 2);
+  assert.equal(late.cards.length, 1);
   assert.equal(late.swap_until, h.now + 5 * 60_000, "its own five minutes");
   assert.equal(h.phone("dev-late2222", "make", { name: "Too Late", team: "Fourth" }).error, "ALL 3 TEAMS ARE MADE. JOIN ONE, OR TAP FIND ME A TEAM.");
 
   // One swap, once.
   const before = ix.teams[0].cards;
-  const swapped = h.phone("dev-aaaaaaaa", "swap", { slot: 1 });
+  const swapped = h.phone("dev-aaaaaaaa", "swap", { slot: 0 });
   assert.ok(swapped.ok, swapped.error);
   const after = h.ix().teams[0].cards;
-  assert.equal(after[0], before[0]);
-  assert.notEqual(after[1], before[1]);
+  assert.equal(after.length, 1);
+  assert.notEqual(after[0], before[0]);
   assert.equal(h.phone("dev-bbbbbbbb", "swap", { slot: 0 }).already, true, "the team's one swap is used");
   assert.match(cmd.undoDeal(h.ctx()).error, /ALREADY SWAPPED/);
 

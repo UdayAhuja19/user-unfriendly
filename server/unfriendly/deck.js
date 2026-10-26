@@ -1,6 +1,6 @@
-// The feature cards: every team is dealt two features of a website to ruin. Pure: the draw pile
+// The feature cards: every team is dealt CARDS_PER_TEAM features of a website to ruin (one, for now). Pure: the draw pile
 // is a plain array the caller stores, so a restarted server deals exactly the cards it would have.
-import { CODE_LETTERS, CODE_LENGTH, nameKey } from "../../unfriendly/js/shared/rules.js";
+import { CARDS_PER_TEAM, CODE_LETTERS, CODE_LENGTH, nameKey } from "../../unfriendly/js/shared/rules.js";
 import { isBlocked } from "../../public/js/shared/names.js";
 
 // The "how to ruin it" lines are for the organisers and the examples shown at the deal.
@@ -64,14 +64,19 @@ export function drawCard(pile, exclude, random) {
   return { card, refilled };
 }
 
-// Two different cards for one team.
-export function dealPair(pile, random) {
-  const first = drawCard(pile, new Set(), random);
-  const second = drawCard(pile, new Set([first.card]), random);
-  return { cards: [first.card, second.card], refilled: first.refilled || second.refilled };
+// One team's hand: `count` different cards.
+export function dealHand(pile, random, count = CARDS_PER_TEAM) {
+  const cards = [];
+  let refilled = false;
+  for (let i = 0; i < count; i += 1) {
+    const drawn = drawCard(pile, new Set(cards), random);
+    cards.push(drawn.card);
+    refilled ||= drawn.refilled;
+  }
+  return { cards, refilled };
 }
 
-// Swaps the card in `slot`: the new one is neither of the team's cards, and the old one goes to
+// Swaps the card in `slot`: the new one isn't any of the team's cards, and the old one goes to
 // the bottom of the pile afterwards, so it can't come straight back.
 export function swapCard(pile, held, slot, random) {
   const old = held[slot];
