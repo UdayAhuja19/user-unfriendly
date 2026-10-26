@@ -99,6 +99,8 @@ if (flag("--fresh") && fs.existsSync(DB_PATH)) {
   }
   const archived = await archiveDatabase(DB_PATH, path.join(path.dirname(DB_PATH), "archive"));
   console.log(`The old event is kept in ${path.relative(root, archived)}.`);
+  // The old event's offline clock goes too, so nothing shows the old countdown.
+  fs.rmSync(path.join(path.dirname(DB_PATH), "clock"), { recursive: true, force: true });
 }
 
 let store;
