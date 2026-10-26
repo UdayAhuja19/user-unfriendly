@@ -479,7 +479,7 @@ function personScreen(view) {
   if (view.phase === "join") {
     parts.push(h("h1", { class: "p-title" }, "You're in"), teamWindow(view), h("p", { class: "note" }, "When everyone's in a team, the host deals each team a feature to ruin. Watch this phone."));
   } else if (view.phase === "deal") {
-    parts.push(h("h1", { class: "p-title" }, "Your features"));
+    parts.push(h("h1", { class: "p-title" }, team.cards.length > 1 ? "Your features" : "Your feature"));
     if (team.canSwap) parts.push(countdown("Swap one card · time left", team.swapUntil));
     else if (team.swapped) parts.push(h("p", { class: "note" }, "You've used your swap. These are yours."));
     const cardKey = team.cards.map((c) => c.id).join();
@@ -495,7 +495,10 @@ function personScreen(view) {
     }
     parts.push(featureCards(team, { canSwap: false }), h("p", { class: "p-sub" }, "Make it look great. Make this horrible to use."), teamWindow(view));
   } else if (view.phase === "present") {
-    parts.push(showSlab(view.show, Boolean(view.stickers)), stickerSection(view));
+    parts.push(showSlab(view.show, Boolean(view.stickers)));
+    // Still to present (a late team building while the others present): keep the feature in view.
+    if (view.show && view.show.upIn >= 1) parts.push(featureCards(team, { canSwap: false }), h("p", { class: "note" }, view.show.upIn === 1 ? "You're next. Finish up and get ready to come to the front." : `You present in ${view.show.upIn} teams. Keep building; come up when you're called.`));
+    parts.push(stickerSection(view));
   } else if (view.phase === "results") {
     parts.push(h("h1", { class: "p-title" }, "Look up"), awardsList(view.results, team.id));
   }
@@ -505,7 +508,7 @@ function personScreen(view) {
 
 // The server is stopped during the build: the phone keeps showing what it last knew.
 function cachedScreen(cache) {
-  const parts = [h("h1", { class: "p-title" }, cache.phase === "build" ? "Build it" : "Your features")];
+  const parts = [h("h1", { class: "p-title" }, cache.phase === "build" ? "Build it" : "Your feature")];
   if (cache.build) parts.push(countdown(`Pencils down at ${timeOfDay(cache.build.endAt)}`, cache.build.endAt, cache.offset ?? 0));
   parts.push(featureCards(cache.team, { canSwap: false }), h("p", { class: "note" }, "The event's server is resting. Your team and features are saved here."));
   return parts;

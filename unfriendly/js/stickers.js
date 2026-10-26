@@ -1,6 +1,6 @@
 // The sticker game, on the phone only. Pick a team's card, pick a sticker off your sheet, tap the
 // card: it slaps on where you tapped, tilted, and everyone looking at that card sees it land.
-// Tap one of your own stickers to peel it off (and use it again). Side-quest stickers (3 of each)
+// Tap one of your own stickers to peel it off (and use it again). Side-quest stickers (one of each, QUEST_EACH)
 // decide the side-quest titles; joke stickers are just for fun.
 import { h, toast } from "./ui.js";
 import { QUESTS, JOKES, stickerKind, isQuest } from "./shared/rules.js";
@@ -51,7 +51,7 @@ export function createStickers(net) {
     const x = Math.round(Math.min(1, Math.max(0, (event.clientX - box.left) / box.width)) * 1000);
     const y = Math.round(Math.min(1, Math.max(0, (event.clientY - box.top) / box.height)) * 1000);
     const kind = armed;
-    if (isQuest(kind) && (view.left[kind] ?? 0) <= 0) return toast("None left. Peel one off a card to move it.");
+    if (isQuest(kind) && (view.left[kind] ?? 0) <= 0) return toast("Already used. Peel yours off a site to move it.");
     navigator.vibrate?.(25);
     const reply = await net.act({ t: "slap", team: teamId, kind, x, y });
     if (reply.t === "no") return toast(reply.error);

@@ -79,7 +79,8 @@ export function presentStart(ctx, { minutes }) {
   const teams = ix.teams.filter((t) => (ix.members.get(t.id)?.length ?? 0) > 0);
   if (teams.length === 0) return { error: "THERE ARE NO TEAMS." };
   const budget = typeof minutes === "number" && minutes >= 1 && minutes <= 180 ? Math.round(minutes * 60_000 * (ctx.scale ?? 1)) : Math.round(PRESENT_BUDGET_MS * (ctx.scale ?? 1));
-  const order = shuffled(teams.map((t) => t.id), ctx.random);
+  // Teams the host added (late arrivals) go last, so they get the most time to build.
+  const order = [...shuffled(teams.filter((t) => t.origin !== "host").map((t) => t.id), ctx.random), ...shuffled(teams.filter((t) => t.origin === "host").map((t) => t.id), ctx.random)];
   return store.tx(() => {
     store.run("DELETE FROM demos");
     order.forEach((teamId, slot) => store.run("INSERT INTO demos (slot, team_id) VALUES (?, ?)", slot, teamId));
@@ -254,7 +255,7 @@ export function slap(ctx, me, deviceId, { op, team, kind, x, y }) {
     if (again) return { ok: true, already: true };
     if (quest) {
       const used = store.get("SELECT COUNT(*) AS n FROM stickers WHERE person_id = ? AND kind = ? AND removed_at IS NULL", me.id, kind).n;
-      if (used >= QUEST_EACH) return { error: `YOU'VE USED ALL ${QUEST_EACH} ${meta.name.toUpperCase()} STICKERS. PEEL ONE OFF TO MOVE IT.` };
+      if (used >= QUEST_EACH) return { error: QUEST_EACH === 1 ? `YOU'VE USED YOUR ${meta.name.toUpperCase()} STICKER. PEEL IT OFF TO MOVE IT.` : `YOU'VE USED ALL ${QUEST_EACH} ${meta.name.toUpperCase()} STICKERS. PEEL ONE OFF TO MOVE IT.` };
     } else {
       const jokes = store.get("SELECT COUNT(*) AS n FROM stickers WHERE person_id = ? AND team_id = ? AND quest = 0 AND removed_at IS NULL", me.id, team).n;
       if (jokes >= JOKES_PER_TEAM) return { error: `${JOKES_PER_TEAM} JOKE STICKERS PER TEAM. THAT'S PLENTY.` };

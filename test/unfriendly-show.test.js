@@ -110,11 +110,11 @@ test("links, presenting, judges, stickers and results", { timeout: 30_000 }, asy
     await act(watcher, { t: "audience", name: "Watcher", ownTeam: null });
     watcher.send(JSON.stringify({ t: "watch", team: order[1].teamId }));
     await until(watcher, (m) => m.t === "pile" && m.team === order[1].teamId);
-    for (let i = 0; i < 3; i += 1) assert.equal((await act(fan, { t: "slap", team: order[1].teamId, kind: "best-ui", x: 100 * i, y: 200 })).t, "ok");
-    assert.match((await act(fan, { t: "slap", team: order[1].teamId, kind: "best-ui", x: 1, y: 1 })).error, /USED ALL 3/);
+    assert.equal((await act(fan, { t: "slap", team: order[1].teamId, kind: "best-ui", x: 100, y: 200 })).t, "ok");
+    assert.match((await act(fan, { t: "slap", team: order[1].teamId, kind: "best-ui", x: 1, y: 1 })).error, /USED YOUR BEST UI STICKER/, "one of each side quest per person");
     const pile = await until(watcher, (m) => m.t === "pile+" && m.add.length >= 1);
     assert.equal(pile.add[0][1], "best-ui", "the watching phone sees stickers land");
-    assert.equal((await lastView(fan, (v) => v.stickers?.left["best-ui"] === 0)).view.stickers.left.funniest, 3);
+    assert.equal((await lastView(fan, (v) => v.stickers?.left["best-ui"] === 0)).view.stickers.left.funniest, 1);
     // Peel one and it can go again.
     const mine = (await until(fan, (m) => m.t === "ok" && m.id)).id;
     assert.equal((await act(fan, { t: "peel", id: mine })).t, "ok");
@@ -222,6 +222,7 @@ test("the host adds a team late: a code, a feature, the last slot, and joins by 
     assert.match((await run("addTeam", { name: "Twins", members: ["Sam Same", "sam same"] })).error, /SAME NAME/);
 
     assert.equal((await run("presentStart", { minutes: 40 })).ok, true);
+    assert.equal(store.all("SELECT team_id FROM demos ORDER BY slot").at(-1).team_id, walkIns, "a host-added team presents last");
     // During presenting: last in the running order.
     const late = await run("addTeam", { name: "Very Late", members: [] });
     assert.equal(late.ok, true);

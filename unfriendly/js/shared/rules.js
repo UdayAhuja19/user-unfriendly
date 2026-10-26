@@ -112,7 +112,7 @@ export const RATINGS = ["Super poop", "Poop", "OK", "Good", "Epic", "Legendary"]
 export const PIN_PATTERN = /^\d{4,8}$/;
 
 // ---------- Stickers ----------
-// Side quests: 3 of each per person for the whole show; they decide the side-quest titles.
+// Side quests: one of each per person for the whole show, so nobody can stack a title; they decide the side-quest titles.
 export const QUESTS = [
   { kind: "best-ui", name: "Best UI" },
   { kind: "funniest", name: "Funniest bad UX" },
@@ -121,7 +121,7 @@ export const QUESTS = [
 ];
 // How many features each team is dealt to ruin (one swap per team either way).
 export const CARDS_PER_TEAM = 1;
-export const QUEST_EACH = 3;
+export const QUEST_EACH = 1;
 // Just for fun: they don't count, at most a few per person per team.
 export const JOKES = [
   { kind: "send-help", name: "Send help" },
