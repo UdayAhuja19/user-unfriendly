@@ -141,22 +141,6 @@ export function toEnd(ctx, { teamId }) {
   });
 }
 
-// Puts the team on stage's site up on the big screen (or takes it down). It comes down by itself
-// when the next team is up, because it's tied to this team.
-export function siteShow(ctx, { on }) {
-  const { ix, store } = ctx;
-  if (ix.phase !== "present") return { error: "PRESENTING HASN'T STARTED." };
-  const demo = ix.demos.find((d) => d.slot === ix.currentSlot);
-  if (!demo) return { error: "EVERY TEAM HAS PRESENTED." };
-  const team = ix.teamById.get(demo.team_id);
-  if (on && !(team.link_kind === "url" && team.link_url)) return { error: "THIS TEAM HAS NO LINK." };
-  return store.tx(() => {
-    store.setMeta("site_team", on ? team.id : null);
-    store.audit("host", "siteShow", { team: team.name, on: Boolean(on) });
-    return { ok: true };
-  });
-}
-
 export function setDemoLength(ctx, { seconds }) {
   if (ctx.ix.phase !== "present") return { error: "PRESENTING HASN'T STARTED." };
   if (!Number.isInteger(seconds) || seconds < 20 || seconds > 600) return { error: "A DEMO IS 20 SECONDS TO 10 MINUTES." };

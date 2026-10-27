@@ -309,8 +309,6 @@ export function screenView(ix, now, online = new Set()) {
         name: teamOf(show.current.team_id).name,
         members: (ix.members.get(show.current.team_id) ?? []).map((p) => p.name),
         cards: cardNames(teamOf(show.current.team_id)),
-        // The team's site, while the host has it up on the big screen (only ever the team on stage).
-        site: ix.meta.site_team === show.current.team_id && teamOf(show.current.team_id).link_kind === "url" ? teamOf(show.current.team_id).link_url : null,
       },
       next: show.slots
         .filter((s) => s.slot > ix.currentSlot)

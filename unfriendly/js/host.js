@@ -274,11 +274,7 @@ function phasePanel(v) {
         h(
           "div",
           { class: "row" },
-          team.link?.url
-            ? v.show?.current?.site
-              ? h("button", { class: "uu-btn uu-btn--ink", type: "button", onclick: () => command("siteShow", { on: false }) }, "Hide site")
-              : h("button", { class: "uu-btn uu-btn--ink", type: "button", onclick: () => command("siteShow", { on: true }) }, "Site on big screen")
-            : null,
+          team.link?.url ? h("button", { class: "uu-btn uu-btn--ink", type: "button", onclick: () => openSite(team.link.url) }, "Open site") : null,
           h("button", { class: "uu-btn uu-btn--red", type: "button", onclick: () => command("demoStart", {}) }, cur.state === "intro" ? "Start demo" : "Restart demo"),
           h(
             "button",
@@ -293,15 +289,6 @@ function phasePanel(v) {
             cur.state === "intro" ? "Skip" : "Next team"
           )
         ),
-        team.link?.url
-          ? h(
-              "p",
-              { class: "p-small" },
-              "Move the mouse onto the projector to click around the site. Big screen shows an error or a blank page? That site won't open inside another page: ",
-              h("button", { class: "linkish", type: "button", onclick: () => { command("siteShow", { on: false }); openSite(team.link.url); } }, "open it in a tab instead"),
-              " and drag the tab to the projector."
-            )
-          : null,
         cur.state === "intro" ? h("button", { class: "linkish", type: "button", onclick: () => command("toEnd", { teamId: team.id }, "MOVED TO THE END.") }, "Not ready? Move to the end") : null,
         h("p", { class: "p-small" }, `Judges' ratings for this team: ${team.ratings}. Stickers: ${team.stickers}.`)
       );
