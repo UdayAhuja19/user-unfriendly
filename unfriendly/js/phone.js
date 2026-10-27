@@ -84,7 +84,7 @@ async function submitMake(event) {
   event.preventDefault();
   const name = personName(value("f-name"));
   const team = teamName(value("f-team"));
-  ui.error = name.error ?? team.error ?? "";
+  ui.error = name.error ?? team.error ?? (teamName(name.name).key === team.key ? "THAT'S YOUR OWN NAME. GIVE THE TEAM A NAME OF ITS OWN." : "");
   if (ui.error) return render();
   rememberName(name.name);
   await run({ t: "make", name: name.name, team: team.name });
@@ -387,7 +387,7 @@ function makeScreen() {
   return [
     back(),
     h("h1", { class: "p-title" }, "Make a team"),
-    h("form", { class: "form", onsubmit: submitMake, novalidate: true }, nameField(), h("label", { class: "field" }, h("span", { class: "field__label" }, "Team name"), h("input", { class: "input", id: "f-team", name: "team", autocomplete: "off", maxlength: 24, required: true })), err(), submit("Make it")),
+    h("form", { class: "form", onsubmit: submitMake, novalidate: true }, nameField(), h("label", { class: "field" }, h("span", { class: "field__label" }, "Team name"), h("input", { class: "input", id: "f-team", name: "uu-crew", autocomplete: "uu-team-name", "data-lpignore": "true", "data-1p-ignore": "true", "data-form-type": "other", autocapitalize: "words", maxlength: 24, required: true })), err(), submit("Make it")),
   ];
 }
 

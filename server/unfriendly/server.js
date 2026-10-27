@@ -49,6 +49,7 @@ const HOST_COMMANDS = {
   undoDeal: cmd.undoDeal,
   reopenSwap: cmd.reopenSwap,
   passSwap: cmd.passSwap,
+  renameTeam: cmd.renameTeam,
   buildStart: cmd.buildStart,
   nudge: cmd.nudge,
   person: cmd.editPerson,

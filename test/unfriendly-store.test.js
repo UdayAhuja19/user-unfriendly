@@ -53,6 +53,7 @@ test("make, join, pool, group, deal, swap: the whole start of the event", async 
   const h = await event();
   h.store.tx(() => h.store.setMeta("max_teams", 3));
 
+  assert.match(h.phone("dev-aaaaaaaa", "make", { name: "Aisha Khan", team: "aisha  khan" }).error, /YOUR OWN NAME/, "autofill's mistake is caught");
   const made = h.phone("dev-aaaaaaaa", "make", { name: "Aisha Khan", team: "The Pop-Ups" });
   assert.ok(made.ok, made.error);
   const code = h.ix().teams[0].code;
@@ -221,6 +222,10 @@ test("the host: settings, removing people and teams, undoing a deal in time", as
   h.phone("dev-aaaaaaaa", "make", { name: "Aisha", team: "Alpha" });
   h.phone("dev-bbbbbbbb", "make", { name: "Ben", team: "Beta" });
   assert.match(cmd.settings(h.ctx(), { maxTeams: 1 }).error, /ALREADY 2 TEAMS/);
+  const alpha = h.ix().teams.find((t) => t.name === "Alpha");
+  assert.match(cmd.renameTeam(h.ctx(), { teamId: alpha.id, name: "beta" }).error, /TAKEN/);
+  assert.ok(cmd.renameTeam(h.ctx(), { teamId: alpha.id, name: "Alpha Wolves" }).ok);
+  assert.equal(h.ix().teamById.get(alpha.id).name, "Alpha Wolves");
   const code = h.ix().teams[0].code;
   h.phone("dev-cccccccc", "join", { name: "Cy", code });
   h.phone("dev-dddddddd", "join", { name: "Di", code });

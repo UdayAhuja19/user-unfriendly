@@ -502,6 +502,20 @@ function teamCard(v, t) {
           )
         )
       : null,
+    v.phase !== "results"
+      ? h(
+          "button",
+          {
+            class: "linkish",
+            type: "button",
+            onclick: () => {
+              const name = prompt(`New name for ${t.name}:`, t.name);
+              if (name !== null && name.trim() !== t.name) command("renameTeam", { teamId: t.id, name }, "RENAMED.");
+            },
+          },
+          "Rename team"
+        )
+      : null,
     open
       ? h(
           "button",

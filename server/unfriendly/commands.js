@@ -85,12 +85,15 @@ const alreadyIn = (me) => me && me.role === "participant" && me.team_id !== null
 
 // ---------- Phones ----------
 // Every phone action is (ctx, me, deviceId, input).
+// Phones' autofill likes to put the person's own name in the team name box.
+const SAME_AS_YOU = "THAT'S YOUR OWN NAME. GIVE THE TEAM A NAME OF ITS OWN.";
 export function make(ctx, me, deviceId, { name, team }) {
   if (alreadyIn(me)) return { ok: true, personId: me.id, already: true };
   const person = personName(name);
   if (person.error) return { error: person.error };
   const tn = teamName(team);
   if (tn.error) return { error: tn.error };
+  if (teamName(person.name).key === tn.key) return { error: SAME_AS_YOU };
   const blocked = makeError(ctx.ix);
   if (blocked) return { error: blocked };
   if (ctx.ix.teams.some((t) => t.name_key === tn.key)) return { error: "THAT TEAM NAME IS TAKEN." };
@@ -164,6 +167,23 @@ export function rename(ctx, me, deviceId, { team }) {
     ctx.store.tx(() => {
       ctx.store.run("UPDATE teams SET name = ?, name_key = ? WHERE id = ?", tn.name, tn.key, me.team_id);
       ctx.store.audit(`person:${me.id}`, "rename", { team: tn.name });
+      return { ok: true };
+    })
+  );
+}
+
+// The host renames a team, any time before the results.
+export function renameTeam(ctx, { teamId, name }) {
+  const team = ctx.ix.teamById.get(teamId);
+  if (!team) return { error: "THAT TEAM ISN'T HERE ANY MORE." };
+  if (ctx.ix.phase === "results") return { error: "TEAM NAMES ARE SET NOW." };
+  const tn = teamName(name);
+  if (tn.error) return { error: tn.error };
+  if (ctx.ix.teams.some((t) => t.name_key === tn.key && t.id !== team.id)) return { error: "THAT TEAM NAME IS TAKEN." };
+  return guarded(() =>
+    ctx.store.tx(() => {
+      ctx.store.run("UPDATE teams SET name = ?, name_key = ? WHERE id = ?", tn.name, tn.key, team.id);
+      ctx.store.audit("host", "renameTeam", { from: team.name, to: tn.name });
       return { ok: true };
     })
   );
