@@ -241,7 +241,11 @@ test("the host adds a team late: a code, a feature, the last slot, and joins by 
     assert.equal((await run("addTeam", { name: "Walk Ins", members: [] })).ok, undefined, "names stay unique");
     assert.match((await run("addTeam", { name: "Twins", members: ["Sam Same", "sam same"] })).error, /SAME NAME/);
 
-    assert.equal((await run("presentStart", { minutes: 40 })).ok, true);
+    assert.match((await run("presentStart", { minutes: 40, demoSeconds: 5 })).error, /20 SECONDS TO 10 MINUTES/);
+    assert.equal((await run("presentStart", { minutes: 40, demoSeconds: 210 })).ok, true);
+    assert.equal(store.getMeta("demo_ms"), 210_000, "the host's own demo length, past the 2-minute auto cap");
+    assert.equal((await run("demoLength", { seconds: 300 })).ok, true);
+    assert.equal(store.getMeta("demo_ms"), 300_000);
     assert.equal(store.all("SELECT team_id FROM demos ORDER BY slot").at(-1).team_id, walkIns, "a host-added team presents last");
     // During presenting: last in the running order.
     const late = await run("addTeam", { name: "Very Late", members: [] });

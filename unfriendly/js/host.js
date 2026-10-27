@@ -9,6 +9,11 @@ let lastSig = "";
 let waitingToRender = false;
 let buildMinutes = 55;
 let presentMinutes = 40;
+const clockText = (sec) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
+// The same sum as the server's demoLength(): the time shared out, less 20 s a team, 45 s to 2 min.
+const autoDemoMs = (budget, teams) => (teams <= 0 ? 120_000 : Math.max(45_000, Math.min(120_000, Math.floor((budget / teams - 20_000) / 5_000) * 5_000)));
+// Minutes per demo before presenting starts; blank shares the presenting time out.
+let demoMinutes = "";
 let pinShown = false;
 let demoWindow = null; // the tab the current team's site is open in
 
@@ -222,8 +227,12 @@ function phasePanel(v) {
       );
     }
     const minutes = h("input", { class: "input", id: "present-minutes", type: "number", min: 1, max: 180, value: presentMinutes, style: "width: 6em", oninput: (e) => (presentMinutes = Number(e.target.value)) });
+    const perDemo = h("input", { class: "input", id: "demo-minutes", type: "number", min: 0.5, max: 10, step: 0.5, placeholder: "Auto", value: demoMinutes, style: "width: 6em", oninput: (e) => (demoMinutes = e.target.value) });
+    const auto = Math.round(autoDemoMs(presentMinutes * 60_000, v.teams.length) / 1000);
     parts.push(
       h("div", { class: "row" }, h("span", { class: "field__label" }, "Presenting minutes"), minutes),
+      h("div", { class: "row" }, h("span", { class: "field__label" }, "Minutes per demo"), perDemo),
+      h("p", { class: "p-small" }, `Leave it blank to share the presenting time out: about ${clockText(auto)} each for ${v.teams.length} teams. You can change it during presenting too.`),
       h(
         "button",
         {
@@ -232,7 +241,10 @@ function phasePanel(v) {
           onclick: async () => {
             const early = v.build.endAt > link.serverNow() ? " Pencils down hasn't come yet." : "";
             const missing = v.teams.length - linked;
-            if (await ask("Start presenting?", `The running order is shuffled. ${missing ? `${missing} ${missing === 1 ? "team has" : "teams have"} no link yet.` : "Every team has a link."}${early}`, { yes: "Start", no: "Not yet" })) command("presentStart", { minutes: presentMinutes }, "PRESENTING.");
+            if (await ask("Start presenting?", `The running order is shuffled. ${missing ? `${missing} ${missing === 1 ? "team has" : "teams have"} no link yet.` : "Every team has a link."}${early}`, { yes: "Start", no: "Not yet" })) {
+              const seconds = demoMinutes === "" ? null : Math.round(Number(demoMinutes) * 60);
+              command("presentStart", { minutes: presentMinutes, demoSeconds: seconds }, "PRESENTING.");
+            }
           },
         },
         "Start presenting"
@@ -242,7 +254,19 @@ function phasePanel(v) {
     const cur = v.order.find((o) => o.state !== "done" && o.state !== "waiting");
     const team = cur ? v.teams.find((t) => t.id === cur.teamId) : null;
     const behind = v.presentAt && v.budgetMs ? Math.round((now - v.presentAt - (v.order.filter((o) => o.state === "done").length * (v.show?.demoMs ?? 0) + v.order.filter((o) => o.state === "done").length * 20_000)) / 1000) : 0;
-    parts.push(h("p", {}, `Demos are ${Math.round((v.show?.demoMs ?? 0) / 1000)} s each. `, behind > 30 ? h("b", { style: "color: var(--uu-red)" }, `${Math.floor(behind / 60)}:${String(behind % 60).padStart(2, "0")} behind.`) : h("b", {}, "On time.")));
+    const demoSec = Math.round((v.show?.demoMs ?? 0) / 1000);
+    const setDemo = (sec) => command("demoLength", { seconds: Math.max(20, Math.min(600, sec)) }, `DEMOS ARE NOW ${clockText(Math.max(20, Math.min(600, sec)))}. COUNTS FROM THE NEXT START DEMO.`);
+    parts.push(
+      h(
+        "div",
+        { class: "row demo-len" },
+        h("span", { class: "field__label" }, "Each demo"),
+        h("button", { class: "uu-btn small-btn", type: "button", onclick: () => setDemo(demoSec - 30) }, "− 30 s"),
+        h("b", { class: "demo-len__value" }, clockText(demoSec)),
+        h("button", { class: "uu-btn small-btn", type: "button", onclick: () => setDemo(demoSec + 30) }, "+ 30 s")
+      )
+    );
+    parts.push(h("p", {}, "Timing: ", behind > 30 ? h("b", { style: "color: var(--uu-red)" }, `${Math.floor(behind / 60)}:${String(behind % 60).padStart(2, "0")} behind.`) : h("b", {}, "On time.")));
     if (team) {
       parts.push(
         h("p", { class: "hteam__name" }, `${cur.slot + 1}/${v.order.length} · ${team.name}`),

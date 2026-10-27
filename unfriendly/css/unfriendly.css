@@ -54,6 +54,8 @@ textarea.input { font-family: inherit; font-size: 17px; line-height: 1.35; resiz
 .phone__main { width: min(100%, 480px); margin: 0 auto; padding: 22px 16px 48px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; }
 .p-title { margin: 0; font-weight: 900; font-stretch: 68%; font-size: clamp(44px, 14vw, 64px); line-height: 0.86; letter-spacing: -0.02em; text-transform: uppercase; }
 .p-sub { margin: 0; font-weight: 600; font-size: 17px; line-height: 1.4; }
+.demo-len { align-items: center; }
+.demo-len__value { min-width: 3.2em; text-align: center; font-weight: 900; font-stretch: 80%; font-size: 26px; }
 .p-small { margin: 0; font-size: 14px; line-height: 1.4; font-weight: 600; }
 .choices { display: grid; gap: 14px; font-size: 17px; }
 .choices .uu-btn { justify-content: space-between; min-height: 64px; padding-inline: 18px; text-align: left; }

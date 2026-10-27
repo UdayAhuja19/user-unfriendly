@@ -73,11 +73,13 @@ export function linksExtend(ctx, { ms }) {
 }
 
 // ---------- Presenting ----------
-export function presentStart(ctx, { minutes }) {
+// Demo length: the host's own number of seconds, or (left blank) the presenting time shared out.
+export function presentStart(ctx, { minutes, demoSeconds = null }) {
   const { ix, store, now } = ctx;
   if (ix.phase !== "build") return { error: ix.phase === "present" ? "PRESENTING HAS STARTED." : "START THE BUILD FIRST." };
   const teams = ix.teams.filter((t) => (ix.members.get(t.id)?.length ?? 0) > 0);
   if (teams.length === 0) return { error: "THERE ARE NO TEAMS." };
+  if (demoSeconds !== null && (!Number.isInteger(demoSeconds) || demoSeconds < 20 || demoSeconds > 600)) return { error: "A DEMO IS 20 SECONDS TO 10 MINUTES." };
   const budget = typeof minutes === "number" && minutes >= 1 && minutes <= 180 ? Math.round(minutes * 60_000 * (ctx.scale ?? 1)) : Math.round(PRESENT_BUDGET_MS * (ctx.scale ?? 1));
   // Teams the host added (late arrivals) go last, so they get the most time to build.
   const order = [...shuffled(teams.filter((t) => t.origin !== "host").map((t) => t.id), ctx.random), ...shuffled(teams.filter((t) => t.origin === "host").map((t) => t.id), ctx.random)];
@@ -88,7 +90,7 @@ export function presentStart(ctx, { minutes }) {
     store.setMeta("phase_at", now);
     store.setMeta("present_at", now);
     store.setMeta("present_budget_ms", budget);
-    store.setMeta("demo_ms", demoLength(budget, order.length, ctx.scale ?? 1));
+    store.setMeta("demo_ms", demoSeconds !== null ? Math.round(demoSeconds * 1000 * (ctx.scale ?? 1)) : demoLength(budget, order.length, ctx.scale ?? 1));
     store.setMeta("current_slot", 0);
     store.audit("host", "presentStart", { teams: order.length, budget });
     return { ok: true, phaseChanged: true };
@@ -141,7 +143,7 @@ export function toEnd(ctx, { teamId }) {
 
 export function setDemoLength(ctx, { seconds }) {
   if (ctx.ix.phase !== "present") return { error: "PRESENTING HASN'T STARTED." };
-  if (!Number.isInteger(seconds) || seconds < 20 || seconds > 600) return { error: "20 SECONDS TO 10 MINUTES." };
+  if (!Number.isInteger(seconds) || seconds < 20 || seconds > 600) return { error: "A DEMO IS 20 SECONDS TO 10 MINUTES." };
   return ctx.store.tx(() => {
     ctx.store.setMeta("demo_ms", Math.round(seconds * 1000 * (ctx.scale ?? 1)));
     ctx.store.audit("host", "demoLength", { seconds });
