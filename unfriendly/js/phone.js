@@ -86,6 +86,7 @@ async function submitMake(event) {
   const team = teamName(value("f-team"));
   ui.error = name.error ?? team.error ?? (teamName(name.name).key === team.key ? "THAT'S YOUR OWN NAME. GIVE THE TEAM A NAME OF ITS OWN." : "");
   if (ui.error) return render();
+  if (!(await ask(`Make ${team.name}?`, `Team: ${team.name}\nYou: ${name.name} (on your certificate)`, { yes: "Make it", no: "Fix it", bar: "CHECK.EXE" }))) return;
   rememberName(name.name);
   await run({ t: "make", name: name.name, team: team.name });
 }
@@ -212,12 +213,13 @@ const submit = (label) => h("button", { class: "uu-btn uu-btn--ink btn-block", t
 const back = () => h("button", { class: "linkish", type: "button", onclick: go("start") }, "← Back");
 const savedName = () => readStore(KEY).name ?? "";
 
-function nameField(label = "Your name") {
+// Empty by default: a name remembered from an earlier go is easy to miss and send by mistake.
+function nameField(label = "Your name", { prefill = false } = {}) {
   return h(
     "label",
     { class: "field" },
     h("span", { class: "field__label" }, label),
-    h("input", { class: "input", id: "f-name", name: "name", autocomplete: "name", maxlength: 40, required: true, value: savedName() }),
+    h("input", { class: "input", id: "f-name", name: "name", autocomplete: "name", maxlength: 40, required: true, value: prefill ? savedName() : "" }),
     h("span", { class: "p-small" }, "As it should appear on your certificate.")
   );
 }
@@ -438,7 +440,7 @@ function backScreen(byName) {
     return parts;
   }
   if (byName) {
-    parts.push(h("p", { class: "p-sub" }, "Type your name exactly as you did at the start."), h("form", { class: "form", onsubmit: submitFind, novalidate: true }, nameField(), err(), submit("Find me")));
+    parts.push(h("p", { class: "p-sub" }, "Type your name exactly as you did at the start."), h("form", { class: "form", onsubmit: submitFind, novalidate: true }, nameField("Your name", { prefill: true }), err(), submit("Find me")));
   } else {
     parts.push(
       h("p", { class: "p-sub" }, "Type your team's code. Any teammate can see it on their phone."),
