@@ -59,6 +59,7 @@ const HOST_COMMANDS = {
   hostLink: show.hostLink,
   presentStart: show.presentStart,
   demoStart: show.demoStart,
+  siteShow: show.siteShow,
   next: show.next,
   toEnd: show.toEnd,
   demoLength: show.setDemoLength,

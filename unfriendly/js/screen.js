@@ -279,10 +279,43 @@ function render() {
   lastSig = sig;
   const views = { join: joinView, deal: dealView, build: buildView, present: presentView, results: resultsView };
   $("stage").replaceChildren((views[state.phase] ?? laterView)(state));
+  siteLayer(state.phase === "present" ? state.show?.current : null);
   requestAnimationFrame(() => {
     fitWall();
     fitResults();
   });
+}
+
+// The team's site, full screen over everything while the host has it up. The frame is kept
+// across re-renders and only reloads when the link changes. It can't take over the page: no
+// top navigation, and it's always another origin (siteUrl() refuses local links).
+let site = null;
+function siteLayer(cur) {
+  const url = cur?.site ?? null;
+  if (!url) {
+    site?.el.remove();
+    site = null;
+    return;
+  }
+  if (!site || site.url !== url) {
+    site?.el.remove();
+    const frame = h("iframe", {
+      class: "site__frame",
+      src: url,
+      title: `${cur.name}'s site`,
+      referrerpolicy: "no-referrer",
+      sandbox: "allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-pointer-lock",
+      allow: "fullscreen; autoplay",
+    });
+    site = { url, el: h("div", { class: "site" }, h("div", { class: "site__bar" }), frame) };
+    document.body.append(site.el);
+  }
+  const left = cur.endsAt ? cur.endsAt - link.serverNow() : null;
+  site.el.querySelector(".site__bar").replaceChildren(
+    h("span", { class: "site__slot" }, `On stage · team ${cur.slot + 1}`),
+    h("b", { class: "site__name" }, cur.name),
+    h("span", { class: "site__clock" }, cur.state === "intro" ? "Up now" : left > 0 ? "Demo " : "Time's up ", cur.state === "intro" || left <= 0 ? null : h("b", { dataset: { end: cur.endsAt } }, clock(left)))
+  );
 }
 
 // The clock: every frame from the end time, so it's right straight after the laptop wakes.

@@ -95,12 +95,20 @@ test("links, presenting, judges, stickers and results", { timeout: 30_000 }, asy
     assert.equal((await act(judge2, { t: "judgeNew", pin: "2710", name: "Ronak" })).t, "ok");
     assert.match((await act(judge, { t: "rate", team: order[0].teamId, value: 6 })).error, /CLOSED/, "not before the demo starts");
     assert.ok((await run("demoStart")).ok);
+    // The site on the big screen: only a team with a link, and only while it's on stage.
+    const firstLink = teams.find((t) => t.id === order[0].teamId).link;
+    if (firstLink?.url) {
+      assert.ok((await run("siteShow", { on: true })).ok);
+      const shown = await until(host, (m) => m.t === "host" && m.show?.current?.site);
+      assert.equal(shown.show.current.site, firstLink.url);
+    } else assert.match((await run("siteShow", { on: true })).error, /NO LINK/);
     assert.equal((await act(judge, { t: "rate", team: order[0].teamId, value: 5 })).t, "ok");
     assert.equal((await act(judge, { t: "rate", team: order[0].teamId, value: 6 })).t, "ok", "can change it during the demo");
     assert.match((await act(judge, { t: "rate", team: order[1].teamId, value: 6 })).error, /CLOSED/);
     assert.ok((await run("next")).ok);
     assert.equal((await act(judge2, { t: "rate", team: order[0].teamId, value: 2 })).t, "ok", "a first rating just after NEXT still counts");
     assert.match((await act(judge, { t: "rate", team: order[0].teamId, value: 1 })).error, /CLOSED/, "but not a change");
+    assert.equal((await until(host, (m) => m.t === "host" && m.show?.current?.slot === 1)).show.current.site, null, "the next team starts without it");
     const jv = (await lastView(judge, (v) => v.current?.slot === 1)).view;
     assert.equal(jv.current.name, (await until(host, (m) => m.t === "host")).order[1].name);
 
