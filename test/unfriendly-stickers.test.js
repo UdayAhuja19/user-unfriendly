@@ -169,9 +169,13 @@ test("stickers: every limit holds, and the side-quest titles match an independen
       expected[r.kind] = r.team;
       taken.add(r.team);
     }
+    // A quest left over goes to its best team even if that team already won something.
+    const firstPass = { ...expected };
+    for (const r of rows) if (!(r.kind in expected)) expected[r.kind] = r.team;
     for (const q of QUESTS) assert.equal(won[q.kind], expected[q.kind] ?? null, `seed ${seed} ${q.kind}`);
-    const titled = Object.values(won).filter((id) => id !== null);
-    assert.equal(new Set(titled).size, titled.length, "one title per team");
+    const titled = [won.main, ...Object.values(firstPass)].filter((id) => id !== null);
+    assert.equal(new Set(titled).size, titled.length, "one title per team where possible");
+    for (const q of QUESTS) if (count.size) assert.notEqual(won[q.kind] === null, rows.some((r) => r.kind === q.kind), `seed ${seed} ${q.kind}: empty only without stickers`);
     for (const a of results.awards.filter((a) => a.key !== "main" && a.team)) {
       assert.equal(a.detail.stickers, count.get(`${a.team.id}|${a.key}`), "the sticker count shown is the real one");
       assert.ok(a.team.members.length === 3, "the winners' members are there for the certificates");
@@ -208,5 +212,45 @@ test("stickers: a crowd that all loves one team still gives out every title", as
   assert.ok(quests.every((id) => id !== null), "every side quest still has a winner");
   assert.equal(new Set(quests).size, 4);
   assert.ok(teams.length === 8);
+  h.store.close();
+});
+
+test("stickers: a small event never leaves a side quest to nobody when it has stickers", async () => {
+  // Two teams, like a two-person practice run: one wins the main award, so the second pass has to
+  // hand out the titles the first pass couldn't.
+  const h = await event(7);
+  assert.ok(h.host("settings", { maxTeams: 2, maxSize: 3 }).ok);
+  const ids = [];
+  for (let t = 0; t < 2; t += 1) {
+    const made = h.phone(`maker-${t}`, "make", { name: `${NAMES[t]} Maker`, team: `Team ${"AB"[t]}` });
+    assert.ok(made.ok, made.error);
+    ids.push(made.teamId);
+  }
+  assert.ok(h.host("deal").ok);
+  assert.ok(h.host("buildStart", { minutes: 55 }).ok);
+  h.advance(56 * 60_000);
+  assert.ok(h.host("presentStart", { minutes: 40 }).ok);
+  const order = h.ctx().ix.demos.map((d) => d.team_id);
+  for (let j = 0; j < 2; j += 1) assert.ok(h.act(`judge-${j}`, "judgeNew", { pin: "6767", name: `Judge ${NAMES[j + 5]}` }).ok);
+  for (const team of order) {
+    assert.ok(h.host("demoStart").ok);
+    for (let j = 0; j < 2; j += 1) assert.ok(h.act(`judge-${j}`, "rate", { team, value: team === order[0] ? 6 : 3 }).ok);
+    assert.ok(h.host("next").ok);
+  }
+  // The main award's team gets Best UI and Funniest; the other gets Creative and Best worst feature.
+  assert.ok(h.act("fan", "audience", { name: "Fan Zed", ownTeam: null }).ok);
+  for (const [kind, team] of [["best-ui", order[0]], ["funniest", order[0]], ["creative", order[1]], ["worst-feature", order[1]]]) {
+    assert.ok(h.act("fan", "slap", { team, kind, x: 500, y: 500 }).ok);
+  }
+  assert.ok(h.host("resultsStart").ok);
+  const awards = Object.fromEntries(h.ctx().ix.meta.results_json.awards.map((a) => [a.key, a]));
+  assert.equal(awards.main.team.id, order[0]);
+  assert.equal(awards.creative.team.id, order[1], "first pass: one title per team");
+  assert.ok(!awards.creative.detail.repeat);
+  for (const [kind, team] of [["best-ui", order[0]], ["funniest", order[0]], ["worst-feature", order[1]]]) {
+    assert.equal(awards[kind].team?.id, team, `${kind} goes to its only team, not nobody`);
+    assert.equal(awards[kind].detail.repeat, true);
+    assert.equal(awards[kind].detail.stickers, 1);
+  }
   h.store.close();
 });

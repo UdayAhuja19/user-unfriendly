@@ -63,7 +63,7 @@ export function computeResults({ teams, presented, ratings, stickers, judges }) 
   const main = ranked[0] ? ranked[0][0] : null;
   if (main !== null) taken.add(main);
 
-  // Side quests: the biggest share of a quest's stickers takes it first, one title per team.
+  // Side quests: the biggest share of a quest's stickers takes it first, one title per team where possible.
   const counts = new Map(); // `${team}|${kind}` → n
   const totals = new Map();
   for (const s of stickers) {
@@ -86,10 +86,15 @@ export function computeResults({ teams, presented, ratings, stickers, judges }) 
     questWinner.set(c.kind, c);
     taken.add(c.teamId);
   }
+  // A quest that would go to nobody (every team with its stickers already has a title) goes to
+  // the best of those teams after all, rather than being left empty.
+  for (const c of candidates) {
+    if (!questWinner.has(c.kind)) questWinner.set(c.kind, { ...c, repeat: true });
+  }
 
   const awards = QUESTS.map((q) => {
     const w = questWinner.get(q.kind);
-    return award(q.kind, q.name, w ? w.teamId : null, w ? { stickers: w.n, of: totals.get(q.kind), share: w.share } : { stickers: 0 });
+    return award(q.kind, q.name, w ? w.teamId : null, w ? { stickers: w.n, of: totals.get(q.kind), share: w.share, ...(w.repeat ? { repeat: true } : {}) } : { stickers: 0 });
   });
   awards.push(award("main", MAIN_AWARD, main, main === null ? null : { ...scores.get(main) }));
 
