@@ -152,13 +152,13 @@ textarea.input { font-family: inherit; font-size: 17px; line-height: 1.35; resiz
 .screen__top { display: flex; justify-content: space-between; gap: 2vw; padding: 2.2vh 3vw 1.4vh; font-size: max(12px, 1.05vw); }
 .screen__offline { padding: 0.2em 0.6em 0.1em; color: var(--uu-paper); background: var(--uu-ink); }
 /* A team's site on the big screen: a thin bar, then the site filling the rest */
-.site { position: fixed; inset: 0; z-index: 1000; display: grid; grid-template-rows: auto minmax(0, 1fr); background: var(--uu-ink); }
-.site__bar { display: flex; align-items: center; gap: 2vw; padding: 0.9vh 1.6vw 0.7vh; color: var(--uu-paper); background: var(--uu-ink); font: 400 clamp(12px, 1.1vw, 20px) var(--uu-mono); letter-spacing: 0.14em; text-transform: uppercase; }
-.site__slot { flex: none; }
-.site__name { flex: 1; min-width: 0; overflow-wrap: anywhere; font: 900 clamp(18px, 1.8vw, 34px)/1 var(--uu-sans); font-stretch: 78%; letter-spacing: 0; }
-.site__clock { flex: none; padding: 0.3em 0.7em 0.2em; background: var(--uu-red); }
-.site__clock b { font: 900 1.5em/1 var(--uu-sans); font-stretch: 80%; letter-spacing: 0; font-variant-numeric: tabular-nums; }
-.site__frame { width: 100%; height: 100%; border: 0; background: #fff; }
+.stage-site { position: fixed; inset: 0; z-index: 1000; display: grid; grid-template-rows: auto minmax(0, 1fr); background: var(--uu-ink); }
+.stage-site__bar { display: flex; align-items: center; gap: 2vw; padding: 0.9vh 1.6vw 0.7vh; color: var(--uu-paper); background: var(--uu-ink); font: 400 clamp(12px, 1.1vw, 20px) var(--uu-mono); letter-spacing: 0.14em; text-transform: uppercase; }
+.stage-site__slot { flex: none; }
+.stage-site__name { flex: 1; min-width: 0; overflow-wrap: anywhere; font: 900 clamp(18px, 1.8vw, 34px)/1 var(--uu-sans); font-stretch: 78%; letter-spacing: 0; }
+.stage-site__clock { flex: none; padding: 0.3em 0.7em 0.2em; background: var(--uu-red); }
+.stage-site__clock b { font: 900 1.5em/1 var(--uu-sans); font-stretch: 80%; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+.stage-site__frame { width: 100%; height: 100%; border: 0; background: #fff; }
 .screen__stage { min-height: 0; padding: 0 3vw 3vh; }
 .join { height: 100%; display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto 1fr; gap: 2.4vh 3vw; }
 .join__title { grid-column: 1; grid-row: 1; align-self: start; display: grid; gap: 2vh; }

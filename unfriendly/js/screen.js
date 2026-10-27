@@ -300,21 +300,21 @@ function siteLayer(cur) {
   if (!site || site.url !== url) {
     site?.el.remove();
     const frame = h("iframe", {
-      class: "site__frame",
+      class: "stage-site__frame",
       src: url,
       title: `${cur.name}'s site`,
       referrerpolicy: "no-referrer",
       sandbox: "allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-pointer-lock",
       allow: "fullscreen; autoplay",
     });
-    site = { url, el: h("div", { class: "site" }, h("div", { class: "site__bar" }), frame) };
+    site = { url, el: h("div", { class: "stage-site" }, h("div", { class: "stage-site__bar" }), frame) };
     document.body.append(site.el);
   }
   const left = cur.endsAt ? cur.endsAt - link.serverNow() : null;
-  site.el.querySelector(".site__bar").replaceChildren(
-    h("span", { class: "site__slot" }, `On stage · team ${cur.slot + 1}`),
-    h("b", { class: "site__name" }, cur.name),
-    h("span", { class: "site__clock" }, cur.state === "intro" ? "Up now" : left > 0 ? "Demo " : "Time's up ", cur.state === "intro" || left <= 0 ? null : h("b", { dataset: { end: cur.endsAt } }, clock(left)))
+  site.el.querySelector(".stage-site__bar").replaceChildren(
+    h("span", { class: "stage-site__slot" }, `On stage · team ${cur.slot + 1}`),
+    h("b", { class: "stage-site__name" }, cur.name),
+    h("span", { class: "stage-site__clock" }, cur.state === "intro" ? "Up now" : left > 0 ? "Demo " : "Time's up ", cur.state === "intro" || left <= 0 ? null : h("b", { dataset: { end: cur.endsAt } }, clock(left)))
   );
 }
 
