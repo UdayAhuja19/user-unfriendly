@@ -76,7 +76,10 @@ export function computeResults({ teams, presented, ratings, stickers, judges }) 
     const [team, kind] = key.split("|");
     candidates.push({ teamId: Number(team), kind, n, share: n / totals.get(kind) });
   }
-  candidates.sort((a, b) => b.share - a.share || b.n - a.n || scoreOf(b.teamId) - scoreOf(a.teamId) || a.teamId - b.teamId);
+  // Ties: more stickers, then the judges' score; a team tied with itself across quests takes the
+  // one listed first (Best UI, Funniest, Creative, Best worst feature).
+  const questOrder = (kind) => QUESTS.findIndex((q) => q.kind === kind);
+  candidates.sort((a, b) => b.share - a.share || b.n - a.n || scoreOf(b.teamId) - scoreOf(a.teamId) || a.teamId - b.teamId || questOrder(a.kind) - questOrder(b.kind));
   const questWinner = new Map();
   for (const c of candidates) {
     if (questWinner.has(c.kind) || taken.has(c.teamId)) continue;
