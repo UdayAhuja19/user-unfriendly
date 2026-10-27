@@ -2,7 +2,7 @@
 
 The app that runs **USER UNFRIENDLY** (GDG on Campus UOBD × Computing Club, Tue 27 Oct 2026, 16:00–18:00, Room 0411): teams build a website with a great UI and the worst possible UX.
 
-One laptop runs everything. The **host panel** stays on the laptop's screen, the **big screen** goes on the projector, and everyone joins on their **phone** by scanning a QR code. It covers the whole event: teams forming, dealing a feature to ruin to each team, adding late teams on the spot, the build countdown, collecting site links, presenting with judges' ratings and stickers, and revealing the winners. At the end it exports the certificate lists.
+One laptop runs everything. The **host panel** stays on the laptop's screen, the **big screen** goes on the projector, and everyone joins on their **phone** by scanning a QR code. It covers the whole event: teams forming, dealing a feature to ruin to each team (one random member per team holds its one swap), adding late teams on the spot, the build countdown, collecting site links, presenting with judges' ratings and stickers, and revealing the winners. At the end it exports the certificate lists.
 
 **Running the event?** Read the [operator's manual (PDF)](docs/operator-manual.pdf). It explains every step, with screenshots, what to say to the room, and what to do if something goes wrong.
 
