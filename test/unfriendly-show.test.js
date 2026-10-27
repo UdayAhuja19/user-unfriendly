@@ -186,7 +186,7 @@ test("titles: one per team, main award first, side quests by share", () => {
     presented: new Set([1, 2, 3]),
     ratings: [1, 2, 3, 4, 5].flatMap((j) => [{ judge_id: j, team_id: 1, value: 6 }, { judge_id: j, team_id: 2, value: 3 }]),
     stickers: [
-      ...Array(5).fill({ team_id: 1, kind: "best-ui" }), // team 1 wins the main award, so it can't take Best UI
+      ...Array(5).fill({ team_id: 1, kind: "best-ui" }), // team 1 wins the main award, so it only gets Best UI if nobody else can
       ...Array(3).fill({ team_id: 2, kind: "best-ui" }),
       ...Array(4).fill({ team_id: 2, kind: "funniest" }),
       { team_id: 3, kind: "funniest" },
@@ -196,7 +196,8 @@ test("titles: one per team, main award first, side quests by share", () => {
   const by = Object.fromEntries(r.awards.map((a) => [a.key, a.team?.id ?? null]));
   assert.equal(by.main, 1);
   assert.equal(by.funniest, 2, "team 2's biggest share");
-  assert.equal(by["best-ui"], null, "team 1 has it, but already won; team 2 already has a title");
+  assert.equal(by["best-ui"], 1, "every team with it already has a title, so it goes to the biggest share rather than nobody");
+  assert.equal(r.awards.find((x) => x.key === "best-ui").detail.repeat, true);
   assert.equal(by.creative, null);
   assert.equal(r.awards.at(-1).key, "main", "revealed last");
 });
