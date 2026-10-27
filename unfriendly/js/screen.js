@@ -101,7 +101,7 @@ function dealView(s) {
   return h(
     "div",
     { class: "dealview" },
-    h("div", { class: "dealview__head" }, h("h1", {}, "The deal"), h("p", { class: "join__lead" }, "Every team has one feature to ruin. One swap each, in the next five minutes.")),
+    h("div", { class: "dealview__head" }, h("h1", {}, "The deal"), h("p", { class: "join__lead" }, "Every team has one feature to ruin. One person in each team holds the swap: talk it over before you use it. Five minutes.")),
     wall(s.teams, { cards: true })
   );
 }

@@ -110,12 +110,16 @@ test("80 phones make 20 teams, the host deals, teams swap, and the big screen ne
     const state = await until(app.screen, "state", (m) => m.phase === "deal");
     for (const code of codes) assert.ok(!JSON.stringify(state).includes(code), "no team code on the big screen");
 
-    // Swaps: one per team, the second teammate gets "already".
-    const swapped = await act(makers[0], { t: "swap", slot: 0 });
-    assert.equal(swapped.t, "ok");
-    const again = await act(joiners[0], { t: "swap", slot: 0 }); // joiner 0 is in team 0
-    assert.equal(again.t, "ok");
-    const team0 = (await until(joiners[0], "view", (m) => m.view.team.swapped)).view.team;
+    // Swaps: only the member holding the team's swap can use it, once.
+    const phones = [...makers, ...joiners];
+    const inTeam0 = phones.filter((_, i) => views[i].view.team.id === views[0].view.team.id);
+    const holder = inTeam0.find((ws) => views[phones.indexOf(ws)].view.team.swapHolder.you);
+    const teammate = inTeam0.find((ws) => ws !== holder);
+    assert.equal(inTeam0.filter((ws) => views[phones.indexOf(ws)].view.team.swapHolder.you).length, 1, "one holder per team");
+    assert.match((await act(teammate, { t: "swap", slot: 0 })).error, /CAN SWAP/);
+    assert.equal((await act(holder, { t: "swap", slot: 0 })).t, "ok");
+    assert.equal((await act(holder, { t: "swap", slot: 0 })).t, "ok"); // already
+    const team0 = (await until(teammate, "view", (m) => m.view.team.swapped)).view.team;
     assert.equal(team0.swapped, true);
     assert.equal(team0.canSwap, false);
 
@@ -232,6 +236,7 @@ test("kill -9 at any moment: the server starts again exactly where it was", { ti
   assert.deepEqual(view.team.cards, dealt.cards, "the same cards");
   assert.equal(view.team.swapUntil, dealt.swapUntil, "the same swap deadline");
   assert.equal(view.team.canSwap, true);
+  if (!view.team.swapHolder.you) assert.ok((await run("passSwap", { teamId: view.team.id })).ok);
   assert.equal((await act(a2, { t: "swap", slot: 0 })).t, "ok");
 
   // ---- Build started, killed: the end time survives ----

@@ -84,6 +84,10 @@ textarea.input { font-family: inherit; font-size: 17px; line-height: 1.35; resiz
 .countdown { display: grid; gap: 4px; padding: 14px 16px 12px; color: var(--uu-paper); background: var(--uu-red); }
 .countdown__label { font-family: var(--uu-mono); font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; }
 .countdown__value { font-weight: 900; font-stretch: 68%; font-size: 56px; line-height: 0.9; font-variant-numeric: tabular-nums; }
+.swap-holder { padding: 12px 14px 10px; color: var(--uu-paper); background: var(--uu-ink); box-shadow: 5px 5px 0 var(--uu-red); font-size: 15px; font-weight: 600; line-height: 1.4; }
+.swap-holder p { margin: 0; }
+.swap-holder__who { margin-bottom: 4px !important; font-weight: 900; font-stretch: 80%; font-size: 22px; line-height: 1.05; text-transform: uppercase; overflow-wrap: anywhere; }
+.hteam__swap { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
 .note { padding: 12px 14px 10px; border: 3px dashed var(--uu-ink); font-weight: 700; font-size: 15px; line-height: 1.4; }
 
 .pick { display: grid; gap: 10px; }

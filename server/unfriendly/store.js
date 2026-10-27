@@ -173,6 +173,8 @@ export async function openStore(file, { now = Date.now, judgePin = null } = {}) 
   db.exec(SCHEMA);
   // Added after the first version: the team a sticker-only person says they're in.
   if (!db.prepare("PRAGMA table_info(people)").all().some((c) => c.name === "own_team_id")) db.exec("ALTER TABLE people ADD COLUMN own_team_id INTEGER");
+  // Added on the day: the one member who holds the team's swap.
+  if (!db.prepare("PRAGMA table_info(teams)").all().some((c) => c.name === "swapper_id")) db.exec("ALTER TABLE teams ADD COLUMN swapper_id INTEGER");
 
   const statements = new Map();
   const stmt = (sql) => {

@@ -4,7 +4,7 @@
 // ctx = { store, ix (from event.index), now, random, scale }
 // A phone's actions also get `me`: the person its device is bound to, or null.
 import { nameKey, personName, teamName, teamCode, SWAP_MS, MAX_TEAMS_LIMIT, MAX_SIZE_LIMIT, MIN_SIZE_LIMIT } from "../../unfriendly/js/shared/rules.js";
-import { acceptsJoins, canLeave, canRename, canSwap, hasRoom, isOpen, makeError } from "./event.js";
+import { acceptsJoins, canLeave, canRename, canSwap, hasRoom, isOpen, makeError, swapHolder } from "./event.js";
 import { dealHand, groupPool, newCode, newPile, swapCard } from "./deck.js";
 
 const UNDO_DEAL_MS = 2 * 60_000;
@@ -38,7 +38,9 @@ function pile(ctx) {
 function dealTeam(ctx, teamId, cards) {
   const { store, now } = ctx;
   cards.forEach((card, slot) => store.run("INSERT INTO team_cards (team_id, slot, feature, dealt_at) VALUES (?, ?, ?, ?)", teamId, slot, card, now));
-  store.run("UPDATE teams SET dealt_at = ?, swap_until = ? WHERE id = ?", now, now + swapMs(ctx), teamId);
+  const members = ctx.ix.members.get(teamId) ?? [];
+  const holder = members.length ? members[Math.floor(ctx.random() * members.length)].id : null;
+  store.run("UPDATE teams SET dealt_at = ?, swap_until = ?, swapper_id = ? WHERE id = ?", now, now + swapMs(ctx), holder, teamId);
 }
 
 function dealOne(ctx, teamId) {
@@ -174,6 +176,8 @@ export function swap(ctx, me, deviceId, { slot }) {
   if (team.swapped_at !== null) return { ok: true, already: true };
   if (!Number.isInteger(slot) || slot < 0 || slot >= team.cards.length) return { error: "PICK A CARD TO SWAP." };
   if (!canSwap(ctx.ix, team, ctx.now)) return { error: "THE SWAP WINDOW HAS CLOSED." };
+  const holder = swapHolder(ctx.ix, team);
+  if (holder && holder.id !== me.id) return { error: `ONLY ${holder.name.toUpperCase()} CAN SWAP. TALK TO THEM.` };
   return ctx.store.tx(() => {
     const draw = pile(ctx);
     const result = swapCard(draw, team.cards, slot, ctx.random);
@@ -335,6 +339,21 @@ export function undoDeal(ctx) {
   });
 }
 
+// Gives the team's swap to the next member, for when the one holding it isn't there.
+export function passSwap(ctx, { teamId }) {
+  const team = ctx.ix.teamById.get(teamId);
+  if (!team || team.dealt_at === null) return { error: "THAT TEAM HASN'T BEEN DEALT." };
+  if (team.swapped_at !== null) return { error: "THAT TEAM HAS ALREADY SWAPPED." };
+  if (ctx.ix.phase !== "deal" && ctx.ix.phase !== "build") return { error: "SWAPS ARE OVER ONCE PRESENTING STARTS." };
+  const members = ctx.ix.members.get(team.id) ?? [];
+  if (members.length < 2) return { error: "NOBODY ELSE IS IN THAT TEAM." };
+  const next = members[(members.indexOf(swapHolder(ctx.ix, team)) + 1) % members.length];
+  return ctx.store.tx(() => {
+    ctx.store.run("UPDATE teams SET swapper_id = ? WHERE id = ?", next.id, team.id);
+    ctx.store.audit("host", "passSwap", { team: team.name, to: next.name });
+    return { ok: true, to: next.name };
+  });
+}
 export function reopenSwap(ctx, { teamId, ms }) {
   const team = ctx.ix.teamById.get(teamId);
   if (!team || team.dealt_at === null) return { error: "THAT TEAM HASN'T BEEN DEALT." };

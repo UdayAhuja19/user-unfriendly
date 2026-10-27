@@ -47,6 +47,12 @@ export const hasRoom = (ix, team) => (ix.members.get(team.id)?.length ?? 0) < ix
 export const canLeave = (ix) => ix.phase === "join";
 export const canRename = (ix) => isOpen(ix);
 // Swapping is for the deal and the build only: never once presenting has started.
+// The one member who can use the team's swap: picked at random at the deal. If they've left the
+// team, it passes to the member who has been in it longest.
+export function swapHolder(ix, team) {
+  const members = ix.members.get(team.id) ?? [];
+  return members.find((p) => p.id === team.swapper_id) ?? members[0] ?? null;
+}
 export const canSwap = (ix, team, now) => (ix.phase === "deal" || ix.phase === "build") && team.dealt_at !== null && team.swapped_at === null && team.swap_until !== null && now < team.swap_until;
 
 export function makeError(ix) {
@@ -200,10 +206,16 @@ export function participantView(ix, person, now, online = new Set(), used = {}) 
       swapUntil: team.swap_until,
       swapped: team.swapped_at !== null,
       canSwap: canSwap(ix, team, now),
+      swapHolder: holderFor(ix, team, person),
       link: team.link_kind === "own-laptop" ? { ownLaptop: true } : team.link_url ? { url: team.link_url, host: hostOf(team.link_url) } : null,
     };
   }
   return view;
+}
+
+function holderFor(ix, team, person) {
+  const holder = swapHolder(ix, team);
+  return holder ? { name: holder.name, you: holder.id === person.id } : null;
 }
 
 // Someone who scanned the sticker QR and isn't in a team (or says which team they're in).
@@ -323,6 +335,7 @@ export function hostView(ix, now, online = new Set(), extra = {}) {
       replaced: t.replaced?.filter(Boolean).map((id) => feature(id)?.name ?? id) ?? [],
       swapUntil: t.swap_until,
       canSwap: canSwap(ix, t, now),
+      swapHolder: swapHolder(ix, t)?.name ?? null,
       over: (ix.members.get(t.id)?.length ?? 0) > ix.maxSize,
       link: t.link_kind === "own-laptop" ? { ownLaptop: true } : t.link_url ? { url: t.link_url, host: hostOf(t.link_url) } : null,
       ratings: extra.ratingCounts?.get(t.id) ?? 0,

@@ -427,6 +427,15 @@ function teamCard(v, t) {
       );
     }
   }
+  if (swap && !t.swapped && t.swapHolder) {
+    swap = h(
+      "div",
+      { class: "hteam__swap" },
+      swap,
+      h("span", { class: "mono", style: "font-size: 12px" }, `Swap held by ${t.swapHolder}`),
+      t.people.length > 1 ? h("button", { class: "uu-btn small-btn", type: "button", onclick: () => command("passSwap", { teamId: t.id }, "SWAP PASSED ON.") }, "Pass it on") : null
+    );
+  }
   return h(
     "article",
     { class: `hteam${t.over ? " hteam--over" : ""}` },

@@ -7,7 +7,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { openStore, takeLock, archiveDatabase } from "../server/unfriendly/store.js";
-import { index, participantView, screenView, hostView } from "../server/unfriendly/event.js";
+import { index, participantView, screenView, hostView, swapHolder } from "../server/unfriendly/event.js";
 import * as cmd from "../server/unfriendly/commands.js";
 
 function seeded(seed = 7) {
@@ -100,24 +100,38 @@ test("make, join, pool, group, deal, swap: the whole start of the event", async 
   assert.equal(late.swap_until, h.now + 5 * 60_000, "its own five minutes");
   assert.equal(h.phone("dev-late2222", "make", { name: "Too Late", team: "Fourth" }).error, "ALL 3 TEAMS ARE MADE. JOIN ONE, OR TAP FIND ME A TEAM.");
 
-  // One swap, once.
-  const before = ix.teams[0].cards;
-  const swapped = h.phone("dev-aaaaaaaa", "swap", { slot: 0 });
+  // One swap, once, and only by the member picked to hold it.
+  const devOf = (p) => h.store.get("SELECT client_id FROM devices WHERE person_id = ?", p.id).client_id;
+  const first = h.ix().teams[0];
+  const holder = swapHolder(h.ix(), first);
+  assert.ok(h.ix().members.get(first.id).some((p) => p.id === first.swapper_id), "a member was picked at the deal");
+  const other = h.ix().members.get(first.id).find((p) => p.id !== holder.id);
+  assert.equal(h.phone(devOf(other), "swap", { slot: 0 }).error, `ONLY ${holder.name.toUpperCase()} CAN SWAP. TALK TO THEM.`);
+  const view = participantView(h.ix(), h.ix().personById.get(other.id), h.now);
+  assert.deepEqual(view.team.swapHolder, { name: holder.name, you: false });
+  const before = first.cards;
+  const swapped = h.phone(devOf(holder), "swap", { slot: 0 });
   assert.ok(swapped.ok, swapped.error);
   const after = h.ix().teams[0].cards;
   assert.equal(after.length, 1);
   assert.notEqual(after[0], before[0]);
-  assert.equal(h.phone("dev-bbbbbbbb", "swap", { slot: 0 }).already, true, "the team's one swap is used");
+  assert.equal(h.phone(devOf(holder), "swap", { slot: 0 }).already, true, "the team's one swap is used");
   assert.match(cmd.undoDeal(h.ctx()).error, /ALREADY SWAPPED/);
+  assert.match(cmd.passSwap(h.ctx(), { teamId: first.id }).error, /ALREADY SWAPPED/);
 
-  // The swap window closes by time alone.
+  // The swap window closes by time alone; the host can reopen it and pass the swap on.
   h.advance(5 * 60_000);
   const second = h.ix().teams[1];
-  const member = h.ix().members.get(second.id)[0];
-  const dev = h.store.get("SELECT client_id FROM devices WHERE person_id = ?", member.id).client_id;
+  const dev = devOf(swapHolder(h.ix(), second));
   assert.equal(h.phone(dev, "swap", { slot: 0 }).error, "THE SWAP WINDOW HAS CLOSED.");
   assert.ok(cmd.reopenSwap(h.ctx(), { teamId: second.id, ms: 120_000 }).ok);
-  assert.ok(h.phone(dev, "swap", { slot: 0 }).ok);
+  if (h.ix().members.get(second.id).length > 1) {
+    const passed = cmd.passSwap(h.ctx(), { teamId: second.id });
+    assert.ok(passed.ok, passed.error);
+    assert.equal(swapHolder(h.ix(), h.ix().teams[1]).name, passed.to);
+    assert.match(h.phone(dev, "swap", { slot: 0 }).error, /CAN SWAP/);
+  }
+  assert.ok(h.phone(devOf(swapHolder(h.ix(), h.ix().teams[1])), "swap", { slot: 0 }).ok);
 });
 
 test("views: the big screen never shows a team code, the host panel does", async () => {

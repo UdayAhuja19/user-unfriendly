@@ -154,7 +154,7 @@ async function claim(person) {
 }
 
 async function swap(card, slot) {
-  const yes = await ask(`Swap ${card.name}?`, "Your team gets one swap. The new card is random.", { yes: "Swap it", no: "Keep it", bar: "SWAP.EXE" });
+  const yes = await ask(`Swap ${card.name}?`, "Has your team agreed? You only get one swap, and the new card is random.", { yes: "Swap it", no: "Keep it", bar: "SWAP.EXE" });
   if (yes) await run({ t: "swap", slot });
 }
 
@@ -480,12 +480,24 @@ function personScreen(view) {
     parts.push(h("h1", { class: "p-title" }, "You're in"), teamWindow(view), h("p", { class: "note" }, "When everyone's in a team, the host deals each team a feature to ruin. Watch this phone."));
   } else if (view.phase === "deal") {
     parts.push(h("h1", { class: "p-title" }, team.cards.length > 1 ? "Your features" : "Your feature"));
-    if (team.canSwap) parts.push(countdown("Swap one card · time left", team.swapUntil));
-    else if (team.swapped) parts.push(h("p", { class: "note" }, "You've used your swap. These are yours."));
+    const holder = team.swapHolder;
+    const mine = !holder || holder.you;
+    if (team.canSwap) {
+      parts.push(countdown("Swap window · time left", team.swapUntil));
+      parts.push(
+        h(
+          "div",
+          { class: "swap-holder" },
+          mine
+            ? [h("p", { class: "swap-holder__who" }, "You hold your team's swap"), h("p", {}, "Talk it over with your team first. Swap only if you all agree.")]
+            : [h("p", { class: "swap-holder__who" }, `${holder.name} holds your team's swap`), h("p", {}, "Talk it over together. If you want a different feature, tell them.")]
+        )
+      );
+    } else if (team.swapped) parts.push(h("p", { class: "note" }, "Your team has used its swap. This is yours."));
     const cardKey = team.cards.map((c) => c.id).join();
     const animate = cardKey !== ui.cardsShown;
     ui.cardsShown = cardKey;
-    parts.push(featureCards(team, { canSwap: team.canSwap, animate }), h("p", { class: "p-sub" }, "Build a site that looks great, where this is horrible to use."), teamWindow(view));
+    parts.push(featureCards(team, { canSwap: team.canSwap && mine, animate }), h("p", { class: "p-sub" }, "Build a site that looks great, where this is horrible to use."), teamWindow(view));
   } else if (view.phase === "build") {
     parts.push(h("h1", { class: "p-title" }, "Build it"), countdown(`Pencils down at ${timeOfDay(view.build.endAt)}`, view.build.endAt));
     if (view.links.open) {
